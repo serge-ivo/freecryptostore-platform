@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMM / DEX Simulator - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; min-height: 100vh; padding: 20px; }
+a.back { position: fixed; top: 20px; left: 20px; color: #f59e0b; text-decoration: none; font-weight: 600; z-index: 100; }
+a.back:hover { text-decoration: underline; }
+h1 { text-align: center; margin: 40px 0 10px; font-size: 1.8rem; color: #f59e0b; }
+.subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+.container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.panel { background: #141414; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; }
+.panel h2 { font-size: 1rem; color: #f59e0b; margin-bottom: 12px; }
+.pool-visual { display: flex; gap: 20px; align-items: flex-end; justify-content: center; height: 180px; margin: 20px 0; }
+.pool-bar { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.pool-bar .bar { width: 80px; background: linear-gradient(to top, #f59e0b, #fbbf24); border-radius: 6px 6px 0 0; transition: height 0.5s; }
+.pool-bar .bar.token-b { background: linear-gradient(to top, #3b82f6, #60a5fa); }
+.pool-bar .label { font-size: 0.8rem; color: #888; }
+.pool-bar .value { font-weight: 600; font-size: 1.1rem; }
+canvas { width: 100%; height: 250px; border-radius: 8px; background: #1a1a1a; }
+.form-group { margin: 12px 0; }
+.form-group label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 4px; }
+.form-group input, .form-group select { width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fafafa; padding: 8px 12px; font-family: inherit; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: #f59e0b; }
+.btn { background: #f59e0b; color: #0a0a0a; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-family: inherit; margin: 4px; }
+.btn:hover { background: #d97706; }
+.btn.secondary { background: #333; color: #fafafa; }
+.btn.secondary:hover { background: #444; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+.stat { background: #1a1a1a; border-radius: 8px; padding: 12px; }
+.stat .label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+.stat .value { font-size: 1.1rem; font-weight: 600; margin-top: 4px; }
+.stat .value.amber { color: #f59e0b; }
+.stat .value.blue { color: #60a5fa; }
+.stat .value.red { color: #ef4444; }
+.stat .value.green { color: #22c55e; }
+.slippage-bar { height: 6px; background: #333; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+.slippage-bar .fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+.tabs .tab { padding: 6px 14px; border-radius: 6px; background: #1a1a1a; color: #888; cursor: pointer; font-size: 0.85rem; border: 1px solid #2a2a2a; }
+.tabs .tab.active { background: #f59e0b22; color: #f59e0b; border-color: #f59e0b; }
+.il-chart { margin-top: 16px; }
+.trade-history { margin-top: 12px; max-height: 120px; overflow-y: auto; font-size: 0.8rem; }
+.trade-history div { padding: 4px 0; border-bottom: 1px solid #1a1a1a; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>AMM / DEX Simulator</h1>
+<p class="subtitle">Constant Product Market Maker (x * y = k)</p>
+
+<div class="container">
+  <div class="panel">
+    <h2>Liquidity Pool</h2>
+    <div class="pool-visual">
+      <div class="pool-bar">
+        <div class="bar" id="barA" style="height:120px"></div>
+        <div class="label">Token A</div>
+        <div class="value" id="poolADisplay">1000</div>
+      </div>
+      <div class="pool-bar">
+        <div class="bar token-b" id="barB" style="height:120px"></div>
+        <div class="label">Token B</div>
+        <div class="value" id="poolBDisplay">1000</div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="label">Price A/B</div><div class="value amber" id="priceAB">1.0000</div></div>
+      <div class="stat"><div class="label">Price B/A</div><div class="value blue" id="priceBA">1.0000</div></div>
+      <div class="stat"><div class="label">K (constant)</div><div class="value" id="kValue">1,000,000</div></div>
+      <div class="stat"><div class="label">Your LP Share</div><div class="value green" id="lpShare">100%</div></div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('swap')">Swap</div>
+      <div class="tab" onclick="switchTab('liquidity')">Liquidity</div>
+      <div class="tab" onclick="switchTab('il')">Impermanent Loss</div>
+    </div>
+
+    <div id="swapPanel">
+      <div class="form-group">
+        <label>Swap Direction</label>
+        <select id="swapDir">
+          <option value="AtoB">Token A -> Token B</option>
+          <option value="BtoA">Token B -> Token A</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Amount</label>
+        <input type="number" id="swapAmount" value="100" min="1">
+      </div>
+      <div class="stat" style="margin:8px 0">
+        <div class="label">Estimated Output / Slippage</div>
+        <div class="value" id="swapPreview">-- / --</div>
+        <div class="slippage-bar"><div class="fill" id="slippageFill" style="width:0%;background:#f59e0b"></div></div>
+      </div>
+      <button class="btn" onclick="executeSwap()">Swap</button>
+    </div>
+
+    <div id="liquidityPanel" style="display:none">
+      <div class="form-group">
+        <label>Token A Amount</label>
+        <input type="number" id="liqA" value="100" min="1">
+      </div>
+      <div class="form-group">
+        <label>Token B Amount (auto-balanced)</label>
+        <input type="number" id="liqB" value="100" disabled>
+      </div>
+      <button class="btn" onclick="addLiquidity()">Add Liquidity</button>
+      <button class="btn secondary" onclick="removeLiquidity()">Remove 25%</button>
+    </div>
+
+    <div id="ilPanel" style="display:none">
+      <p style="font-size:0.85rem;color:#888;margin-bottom:12px">Impermanent loss when price ratio changes from initial 1:1</p>
+      <canvas id="ilChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Price Curve (x * y = k)</h2>
+    <canvas id="curveCanvas" height="250"></canvas>
+    <h2 style="margin-top:20px">Trade History</h2>
+    <div class="trade-history" id="tradeHistory"></div>
+  </div>
+</div>
+
+<script>
+let pool = { a: 1000, b: 1000 };
+let k = pool.a * pool.b;
+let totalLP = 1000;
+let userLP = 1000;
+let trades = [];
+
+function updatePool() {
+  k = pool.a * pool.b;
+  document.getElementById('poolADisplay').textContent = pool.a.toFixed(1);
+  document.getElementById('poolBDisplay').textContent = pool.b.toFixed(1);
+  document.getElementById('priceAB').textContent = (pool.b / pool.a).toFixed(4);
+  document.getElementById('priceBA').textContent = (pool.a / pool.b).toFixed(4);
+  document.getElementById('kValue').textContent = k.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  document.getElementById('lpShare').textContent = ((userLP / totalLP) * 100).toFixed(1) + '%';
+
+  const maxPool = Math.max(pool.a, pool.b, 1000);
+  document.getElementById('barA').style.height = (pool.a / maxPool) * 150 + 'px';
+  document.getElementById('barB').style.height = (pool.b / maxPool) * 150 + 'px';
+
+  drawCurve();
+  updateSwapPreview();
+}
+
+function updateSwapPreview() {
+  const amount = parseFloat(document.getElementById('swapAmount').value) || 0;
+  const dir = document.getElementById('swapDir').value;
+  if (amount <= 0) { document.getElementById('swapPreview').textContent = '-- / --'; return; }
+
+  let output, idealOutput;
+  if (dir === 'AtoB') {
+    output = pool.b - (k / (pool.a + amount));
+    idealOutput = amount * (pool.b / pool.a);
+  } else {
+    output = pool.a - (k / (pool.b + amount));
+    idealOutput = amount * (pool.a / pool.b);
+  }
+  const slippage = idealOutput > 0 ? ((idealOutput - output) / idealOutput) * 100 : 0;
+  document.getElementById('swapPreview').textContent = `${output.toFixed(4)} / ${slippage.toFixed(2)}% slippage`;
+  const fill = document.getElementById('slippageFill');
+  fill.style.width = Math.min(slippage * 5, 100) + '%';
+  fill.style.background = slippage > 10 ? '#ef4444' : slippage > 5 ? '#f59e0b' : '#22c55e';
+}
+
+function executeSwap() {
+  const amount = parseFloat(document.getElementById('swapAmount').value);
+  const dir = document.getElementById('swapDir').value;
+  if (!amount || amount <= 0) return;
+
+  let output;
+  if (dir === 'AtoB') {
+    output = pool.b - (k / (pool.a + amount));
+    pool.a += amount;
+    pool.b -= output;
+    trades.unshift({ type: 'Swap A->B', input: amount.toFixed(2) + ' A', output: output.toFixed(4) + ' B' });
+  } else {
+    output = pool.a - (k / (pool.b + amount));
+    pool.b += amount;
+    pool.a -= output;
+    trades.unshift({ type: 'Swap B->A', input: amount.toFixed(2) + ' B', output: output.toFixed(4) + ' A' });
+  }
+  renderTrades();
+  updatePool();
+}
+
+function addLiquidity() {
+  const addA = parseFloat(document.getElementById('liqA').value) || 0;
+  if (addA <= 0) return;
+  const addB = addA * (pool.b / pool.a);
+  const lpMinted = (addA / pool.a) * totalLP;
+  pool.a += addA;
+  pool.b += addB;
+  totalLP += lpMinted;
+  userLP += lpMinted;
+  k = pool.a * pool.b;
+  trades.unshift({ type: 'Add Liq', input: `${addA.toFixed(1)}A + ${addB.toFixed(1)}B`, output: `+${lpMinted.toFixed(2)} LP` });
+  renderTrades();
+  updatePool();
+}
+
+function removeLiquidity() {
+  const removeLP = userLP * 0.25;
+  const share = removeLP / totalLP;
+  const getA = pool.a * share;
+  const getB = pool.b * share;
+  pool.a -= getA;
+  pool.b -= getB;
+  totalLP -= removeLP;
+  userLP -= removeLP;
+  k = pool.a * pool.b;
+  trades.unshift({ type: 'Rm Liq', input: `-${removeLP.toFixed(2)} LP`, output: `${getA.toFixed(1)}A + ${getB.toFixed(1)}B` });
+  renderTrades();
+  updatePool();
+}
+
+function drawCurve() {
+  const canvas = document.getElementById('curveCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * 2;
+  canvas.height = 500;
+  ctx.scale(2, 2);
+  const w = canvas.offsetWidth, h = 250;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, w, h);
+
+  const padding = 40;
+  const maxX = pool.a * 3;
+  const maxY = pool.b * 3;
+
+  // Axes
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padding, h - padding);
+  ctx.lineTo(w - 10, h - padding);
+  ctx.moveTo(padding, h - padding);
+  ctx.lineTo(padding, 10);
+  ctx.stroke();
+
+  ctx.fillStyle = '#666';
+  ctx.font = '10px Manrope';
+  ctx.fillText('Token A', w / 2, h - 5);
+  ctx.save();
+  ctx.translate(12, h / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Token B', 0, 0);
+  ctx.restore();
+
+  // Curve
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let px = padding + 1; px < w - 10; px++) {
+    const x = ((px - padding) / (w - padding - 10)) * maxX;
+    if (x <= 0) continue;
+    const y = k / x;
+    const py = h - padding - (y / maxY) * (h - padding - 10);
+    if (px === padding + 1) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  // Current position
+  const cx = padding + (pool.a / maxX) * (w - padding - 10);
+  const cy = h - padding - (pool.b / maxY) * (h - padding - 10);
+  ctx.beginPath();
+  ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+  ctx.fillStyle = '#f59e0b';
+  ctx.fill();
+  ctx.fillStyle = '#fafafa';
+  ctx.font = '10px Manrope';
+  ctx.fillText(`(${pool.a.toFixed(0)}, ${pool.b.toFixed(0)})`, cx + 10, cy - 10);
+}
+
+function drawILChart() {
+  const canvas = document.getElementById('ilChart');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * 2;
+  canvas.height = 400;
+  ctx.scale(2, 2);
+  const w = canvas.offsetWidth, h = 200;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, w, h);
+
+  const padding = 40;
+  // IL formula: IL = 2*sqrt(r)/(1+r) - 1 where r = price_ratio
+  ctx.strokeStyle = '#ef4444';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let px = padding; px < w - 10; px++) {
+    const r = ((px - padding) / (w - padding - 10)) * 5; // ratio from 0 to 5
+    if (r <= 0) continue;
+    const il = (2 * Math.sqrt(r) / (1 + r)) - 1;
+    const py = h - padding - ((-il) / 0.3) * (h - padding - 10);
+    if (px === padding) ctx.moveTo(px, py);
+    else ctx.lineTo(px, Math.max(10, py));
+  }
+  ctx.stroke();
+
+  // HODL line
+  ctx.strokeStyle = '#22c55e';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(padding, h - padding);
+  ctx.lineTo(w - 10, h - padding);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Labels
+  ctx.fillStyle = '#666';
+  ctx.font = '10px Manrope';
+  ctx.fillText('Price Ratio (x)', w / 2, h - 5);
+  ctx.fillText('0%', padding - 20, h - padding + 4);
+  ctx.fillText('-30%', padding - 30, 20);
+  ctx.fillStyle = '#ef4444';
+  ctx.fillText('Impermanent Loss', w - 130, 20);
+  ctx.fillStyle = '#22c55e';
+  ctx.fillText('HODL (0% loss)', w - 130, 35);
+
+  // Mark 1:1 ratio
+  const oneX = padding + (1 / 5) * (w - padding - 10);
+  ctx.strokeStyle = '#f59e0b44';
+  ctx.beginPath();
+  ctx.moveTo(oneX, 10);
+  ctx.lineTo(oneX, h - padding);
+  ctx.stroke();
+  ctx.fillStyle = '#f59e0b';
+  ctx.fillText('1:1', oneX - 5, h - padding + 14);
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tabs .tab:nth-child(${tab === 'swap' ? 1 : tab === 'liquidity' ? 2 : 3})`).classList.add('active');
+  document.getElementById('swapPanel').style.display = tab === 'swap' ? 'block' : 'none';
+  document.getElementById('liquidityPanel').style.display = tab === 'liquidity' ? 'block' : 'none';
+  document.getElementById('ilPanel').style.display = tab === 'il' ? 'block' : 'none';
+  if (tab === 'il') setTimeout(drawILChart, 50);
+}
+
+function renderTrades() {
+  document.getElementById('tradeHistory').innerHTML = trades.slice(0, 20).map(t =>
+    `<div><span>${t.type}</span><span style="color:#888">${t.input} -> ${t.output}</span></div>`
+  ).join('');
+}
+
+document.getElementById('swapAmount').addEventListener('input', updateSwapPreview);
+document.getElementById('swapDir').addEventListener('change', updateSwapPreview);
+document.getElementById('liqA').addEventListener('input', function() {
+  const addA = parseFloat(this.value) || 0;
+  document.getElementById('liqB').value = (addA * (pool.b / pool.a)).toFixed(2);
+});
+
+updatePool();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

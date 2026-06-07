@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>FreeCryptoStore — 16 Simulations</title>
+<meta name="description" content="16 interactive blockchain & cryptography simulations. Free, open source.">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--accent:#f59e0b;--paper:#0a0a0a;--ink:#fafafa;--muted:#737373;--panel:#141414;--line:#1a1a1a}
+body{font-family:'Manrope',system-ui,sans-serif;background:var(--paper);color:var(--ink)}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+header{border-bottom:1px solid var(--line);padding:.6rem 1.5rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:.5rem;text-decoration:none;color:var(--ink)}
+.brand-emoji{font-size:1.4rem}.brand-name{font-family:'Fraunces',serif;font-size:1.05rem;font-weight:700}
+nav{display:flex;gap:.85rem;font-size:.82rem;font-weight:600;margin-left:auto}
+nav a{color:var(--muted)}nav a:hover{color:var(--ink);text-decoration:none}
+.hero{text-align:center;padding:2.5rem 1.5rem 1.5rem}
+.hero h1{font-family:'Fraunces',serif;font-size:2rem;font-weight:700;margin-bottom:.4rem}
+.hero h1 span{color:var(--accent)}
+.hero p{color:var(--muted);font-size:.95rem;max-width:550px;margin:0 auto .75rem}
+.badge{display:inline-block;padding:.2rem .65rem;border-radius:99px;font-size:.75rem;font-weight:600;background:var(--panel);border:1px solid var(--line);color:var(--muted);margin:.15rem}
+.grid{max-width:1100px;margin:0 auto;padding:0 1.5rem 3rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:.65rem}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:.9rem;display:flex;gap:.7rem;align-items:flex-start;transition:border-color .15s,transform .15s;text-decoration:none;color:inherit}
+.card:hover{border-color:var(--accent);transform:translateY(-1px);text-decoration:none}
+.card-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0}
+.card-body{flex:1;min-width:0}.card-name{font-size:.9rem;font-weight:700;margin-bottom:.15rem}
+.card-desc{font-size:.72rem;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-cta{font-size:.72rem;font-weight:600;color:var(--accent);white-space:nowrap;align-self:center}
+footer{border-top:1px solid var(--line);padding:1.5rem;text-align:center;font-size:.72rem;color:#404040}
+</style>
+</head>
+<body>
+<header>
+<a href="/" class="brand"><span class="brand-emoji">🔗</span><span class="brand-name">FreeCryptoStore</span></a>
+<nav><a href="/">All</a><a href="/institute/">Institute</a><a href="/creators/">Creators</a><a href="/challenges/">Challenges</a><a href="/collections/">Paths</a><a href="/relations/">Relations</a></nav>
+</header>
+<section class="hero">
+<h1>Free<span>Crypto</span>Store</h1>
+<p>16 interactive blockchain & cryptography simulations. Free forever, open source.</p>
+<span class="badge">16 Simulations</span><span class="badge">Open Source</span><span class="badge">No Signup</span>
+</section>
+<div class="grid">
+<a href="/items/blockchain-builder/" class="card"><div class="card-icon" style="background:#f59e0b">🔗</div><div class="card-body"><div class="card-name">Blockchain Builder</div><div class="card-desc">Build a blockchain from scratch. Add transactions, mine blocks, tamper with data, watch the chain validate or break.</div></div><span class="card-cta">Open →</span></a><a href="/items/hash-explorer/" class="card"><div class="card-icon" style="background:#f59e0b">#️⃣</div><div class="card-body"><div class="card-name">SHA-256 Hash Explorer</div><div class="card-desc">Type text and see SHA-256 update in real-time. Avalanche effect demo, bit visualization, mining challenge.</div></div><span class="card-cta">Open →</span></a><a href="/items/merkle-tree/" class="card"><div class="card-icon" style="background:#10b981">🌳</div><div class="card-body"><div class="card-name">Merkle Tree Builder</div><div class="card-desc">Build Merkle trees visually. Add leaves, watch hashes propagate, verify proofs, tamper with nodes.</div></div><span class="card-cta">Open →</span></a><a href="/items/consensus-sim/" class="card"><div class="card-icon" style="background:#3b82f6">🤝</div><div class="card-body"><div class="card-name">Consensus Simulator</div><div class="card-desc">Compare PoW, PoS, and PBFT consensus algorithms. Byzantine fault tolerance, message passing, fork resolution.</div></div><span class="card-cta">Open →</span></a><a href="/items/wallet-sim/" class="card"><div class="card-icon" style="background:#8b5cf6">👛</div><div class="card-body"><div class="card-name">HD Wallet Simulator</div><div class="card-desc">Generate mnemonics, derive keys via BIP-39/44, see the derivation tree, sign and verify messages.</div></div><span class="card-cta">Open →</span></a><a href="/items/mining-race/" class="card"><div class="card-icon" style="background:#f59e0b">⛏️</div><div class="card-body"><div class="card-name">Mining Race</div><div class="card-desc">Watch 5 miners race to find valid hashes. Adjustable difficulty, hashrate stats, block rewards.</div></div><span class="card-cta">Open →</span></a><a href="/items/smart-contract/" class="card"><div class="card-icon" style="background:#8b5cf6">📜</div><div class="card-body"><div class="card-name">Smart Contract Sandbox</div><div class="card-desc">Write and execute contracts in a simplified VM. Stack, memory, storage visualization. Gas tracking.</div></div><span class="card-cta">Open →</span></a><a href="/items/amm-sim/" class="card"><div class="card-icon" style="background:#ec4899">💱</div><div class="card-body"><div class="card-name">AMM / DEX Simulator</div><div class="card-desc">Constant-product market maker. Swap tokens, add liquidity, see price curves, impermanent loss calculator.</div></div><span class="card-cta">Open →</span></a><a href="/items/p2p-network/" class="card"><div class="card-icon" style="background:#06b6d4">🌐</div><div class="card-body"><div class="card-name">P2P Network Simulator</div><div class="card-desc">Watch transactions gossip through a network. Partition nodes, create forks, resolve with longest chain.</div></div><span class="card-cta">Open →</span></a><a href="/items/token-creator/" class="card"><div class="card-icon" style="background:#f59e0b">🪙</div><div class="card-body"><div class="card-name">Token Economics Designer</div><div class="card-desc">Design tokens with custom supply curves, bonding curves, inflation models. Simulate transfers and economics.</div></div><span class="card-cta">Open →</span></a><a href="/items/digital-signatures/" class="card"><div class="card-icon" style="background:#10b981">✍️</div><div class="card-body"><div class="card-name">Digital Signatures</div><div class="card-desc">ECDSA step by step. Key generation, signing, verification. Visual elliptic curve operations.</div></div><span class="card-cta">Open →</span></a><a href="/items/fork-explorer/" class="card"><div class="card-icon" style="background:#ef4444">🔱</div><div class="card-body"><div class="card-name">Fork &amp; Chain Resolution</div><div class="card-desc">Watch blockchains fork, compete, and resolve. 51% attack simulation, double-spend demo, orphan blocks.</div></div><span class="card-cta">Open →</span></a><a href="/items/zero-knowledge/" class="card"><div class="card-icon" style="background:#8b5cf6">🎭</div><div class="card-body"><div class="card-name">Zero-Knowledge Proofs</div><div class="card-desc">Ali Baba cave ZKP demo. Play prover or verifier. Watch probability of cheating drop exponentially.</div></div><span class="card-cta">Open →</span></a><a href="/items/defi-yield/" class="card"><div class="card-icon" style="background:#10b981">🌾</div><div class="card-body"><div class="card-name">DeFi Yield Farming</div><div class="card-desc">Stake in pools, watch rewards accumulate, compound vs simple interest, risk assessment, gas optimization.</div></div><span class="card-cta">Open →</span></a><a href="/items/block-anatomy/" class="card"><div class="card-icon" style="background:#3b82f6">🧱</div><div class="card-body"><div class="card-name">Block Anatomy Explorer</div><div class="card-desc">Interactive block structure. Expand each field, compare Bitcoin vs Ethereum blocks, inspect the genesis block.</div></div><span class="card-cta">Open →</span></a><a href="/items/crypto-timeline/" class="card"><div class="card-icon" style="background:#737373">📅</div><div class="card-body"><div class="card-name">Cryptocurrency Timeline</div><div class="card-desc">Interactive history from Diffie-Hellman (1976) to today. Key events, innovations, and their connections.</div></div><span class="card-cta">Open →</span></a>
+</div>
+<footer>FreeCryptoStore — free blockchain, cryptography & distributed systems education.</footer>
+</body>
+</html>

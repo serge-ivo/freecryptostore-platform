@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HD Wallet Simulator - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;padding:20px;min-height:100vh}
+a.back{position:fixed;top:20px;left:20px;color:#f59e0b;text-decoration:none;font-weight:600;z-index:100}
+a.back:hover{text-decoration:underline}
+h1{text-align:center;margin:40px 0 10px;font-size:2rem;color:#f59e0b}
+.subtitle{text-align:center;color:#888;margin-bottom:30px}
+.container{max-width:1000px;margin:0 auto}
+.section{background:#141414;border:1px solid #222;border-radius:12px;padding:24px;margin-bottom:20px}
+.section h2{color:#f59e0b;margin-bottom:16px;font-size:1.1rem}
+.controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.controls button{background:#f59e0b;color:#0a0a0a;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-weight:600;font-family:'Manrope',system-ui,sans-serif}
+.controls button:hover{background:#d97706}
+.controls button.secondary{background:#333;color:#fafafa}
+.controls button.secondary:hover{background:#444}
+.controls select{background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:8px 12px;color:#fafafa;font-family:'Manrope',system-ui,sans-serif}
+.mnemonic-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:12px}
+.mnemonic-word{background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:8px 12px;font-family:monospace;font-size:0.85rem;text-align:center}
+.mnemonic-word span{color:#888;font-size:0.7rem;display:block}
+.data-box{background:#1a1a1a;border-radius:8px;padding:14px;margin-top:12px;font-family:monospace;font-size:0.8rem;word-break:break-all;line-height:1.6}
+.data-box .label{color:#888;font-size:0.7rem;text-transform:uppercase;margin-bottom:4px;font-family:'Manrope',system-ui,sans-serif}
+.data-box .value{color:#fafafa}
+.derivation-tree{margin-top:16px}
+.tree-node{display:flex;align-items:center;padding:8px 12px;margin:4px 0;background:#1a1a1a;border-radius:6px;border-left:3px solid #333;cursor:pointer;transition:all 0.2s}
+.tree-node:hover{border-left-color:#f59e0b;background:#1f1f1f}
+.tree-node.active{border-left-color:#f59e0b;background:#2a1f00}
+.tree-node .path{color:#f59e0b;font-family:monospace;font-size:0.85rem;min-width:180px}
+.tree-node .addr{color:#888;font-family:monospace;font-size:0.75rem;overflow:hidden;text-overflow:ellipsis}
+.indent-1{margin-left:20px}
+.indent-2{margin-left:40px}
+.indent-3{margin-left:60px}
+.indent-4{margin-left:80px}
+.indent-5{margin-left:100px}
+.sign-section{margin-top:16px}
+.sign-section input,.sign-section textarea{width:100%;background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:12px;color:#fafafa;font-family:monospace;font-size:0.85rem;outline:none;resize:vertical}
+.sign-section input:focus,.sign-section textarea:focus{border-color:#f59e0b}
+.sign-section label{display:block;color:#888;font-size:0.8rem;margin:12px 0 4px}
+.verified{color:#22c55e;font-weight:600}
+.arrow{color:#f59e0b;margin:12px 0;text-align:center;font-size:1.2rem}
+.entropy-viz{display:flex;flex-wrap:wrap;gap:1px;margin-top:8px}
+.entropy-bit{width:6px;height:6px;border-radius:1px}
+.entropy-bit.on{background:#f59e0b}
+.entropy-bit.off{background:#222}
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<div class="container">
+<h1>HD Wallet Simulator</h1>
+<p class="subtitle">Explore hierarchical deterministic key derivation</p>
+
+<div class="section">
+<h2>1. Generate Entropy & Mnemonic</h2>
+<div class="controls">
+<button onclick="generate(12)">Generate 12 Words</button>
+<button onclick="generate(24)">Generate 24 Words</button>
+<button class="secondary" onclick="showEntropy()">Show Entropy</button>
+</div>
+<div id="entropyViz"></div>
+<div class="mnemonic-grid" id="mnemonicGrid"></div>
+</div>
+
+<div class="section">
+<h2>2. Seed Derivation</h2>
+<p style="color:#888;font-size:0.85rem;margin-bottom:12px">Mnemonic + passphrase -> PBKDF2 (2048 rounds) -> 512-bit seed</p>
+<div class="data-box">
+<div class="label">Seed (512-bit)</div>
+<div class="value" id="seedValue">Generate a mnemonic first</div>
+</div>
+<div class="arrow">&#8595;</div>
+<div class="data-box">
+<div class="label">Master Private Key (from HMAC-SHA512 of seed)</div>
+<div class="value" id="masterKey">-</div>
+</div>
+<div class="data-box" style="margin-top:8px">
+<div class="label">Master Chain Code</div>
+<div class="value" id="chainCode">-</div>
+</div>
+</div>
+
+<div class="section">
+<h2>3. HD Derivation Tree (BIP-44 Ethereum)</h2>
+<p style="color:#888;font-size:0.85rem;margin-bottom:12px">Path: m / purpose' / coin_type' / account' / change / address_index</p>
+<div class="controls">
+<button onclick="deriveMore()">Derive Next Address</button>
+<select id="pathSelect" onchange="changePath()">
+<option value="44-60">m/44'/60'/0'/0/x (Ethereum)</option>
+<option value="44-0">m/44'/0'/0'/0/x (Bitcoin)</option>
+<option value="44-501">m/44'/501'/0'/0/x (Solana)</option>
+</select>
+</div>
+<div class="derivation-tree" id="derivTree"></div>
+</div>
+
+<div class="section">
+<h2>4. Sign & Verify Message</h2>
+<div class="sign-section">
+<label>Message to sign:</label>
+<input type="text" id="signMsg" placeholder="Hello, crypto world!" value="Hello, crypto world!">
+<label>Signing with key at index:</label>
+<select id="signKeyIdx" onchange="updateSign()"></select>
+<div class="controls" style="margin-top:12px">
+<button onclick="signMessage()">Sign Message</button>
+<button class="secondary" onclick="verifyMessage()">Verify Signature</button>
+</div>
+<div class="data-box" style="margin-top:12px">
+<div class="label">Signature (simulated ECDSA)</div>
+<div class="value" id="signatureValue">-</div>
+</div>
+<div class="data-box" style="margin-top:8px">
+<div class="label">Verification</div>
+<div class="value" id="verifyResult">-</div>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+const SHA256=(function(){const K=new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);function rotr(n,x){return(x>>>n)|(x<<(32-n))}return function(msg){const bytes=new TextEncoder().encode(msg);const len=bytes.length;const bl=((len+9+63)&~63);const buf=new Uint8Array(bl);buf.set(bytes);buf[len]=0x80;const dv=new DataView(buf.buffer);dv.setUint32(bl-4,len*8,false);let h0=0x6a09e667,h1=0xbb67ae85,h2=0x3c6ef372,h3=0xa54ff53a,h4=0x510e527f,h5=0x9b05688c,h6=0x1f83d9ab,h7=0x5be0cd19;const w=new Uint32Array(64);for(let i=0;i<bl;i+=64){for(let j=0;j<16;j++)w[j]=dv.getUint32(i+j*4,false);for(let j=16;j<64;j++){const s0=rotr(7,w[j-15])^rotr(18,w[j-15])^(w[j-15]>>>3);const s1=rotr(17,w[j-2])^rotr(19,w[j-2])^(w[j-2]>>>10);w[j]=(w[j-16]+s0+w[j-7]+s1)|0}let a=h0,b=h1,c=h2,d=h3,e=h4,f=h5,g=h6,h=h7;for(let j=0;j<64;j++){const S1=rotr(6,e)^rotr(11,e)^rotr(25,e);const ch=(e&f)^(~e&g);const t1=(h+S1+ch+K[j]+w[j])|0;const S0=rotr(2,a)^rotr(13,a)^rotr(22,a);const maj=(a&b)^(a&c)^(b&c);const t2=(S0+maj)|0;h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0}h0=(h0+a)|0;h1=(h1+b)|0;h2=(h2+c)|0;h3=(h3+d)|0;h4=(h4+e)|0;h5=(h5+f)|0;h6=(h6+g)|0;h7=(h7+h)|0}return[h0,h1,h2,h3,h4,h5,h6,h7].map(v=>(v>>>0).toString(16).padStart(8,'0')).join('')}})();
+
+// BIP-39 wordlist (simplified - first 256 words for demo)
+const WORDLIST = ['abandon','ability','able','about','above','absent','absorb','abstract','absurd','abuse','access','accident','account','accuse','achieve','acid','acoustic','acquire','across','act','action','actor','actress','actual','adapt','add','addict','address','adjust','admit','adult','advance','advice','aerobic','affair','afford','afraid','again','age','agent','agree','ahead','aim','air','airport','aisle','alarm','album','alcohol','alert','alien','all','alley','allow','almost','alone','alpha','already','also','alter','always','amateur','amazing','among','amount','amused','analyst','anchor','ancient','anger','angle','angry','animal','ankle','announce','annual','another','answer','antenna','antique','anxiety','any','apart','apology','appear','apple','approve','april','arch','arctic','area','arena','argue','arm','armed','armor','army','around','arrange','arrest','arrive','arrow','art','artefact','artist','artwork','ask','aspect','assault','asset','assist','assume','asthma','athlete','atom','attack','attend','attitude','attract','auction','audit','august','aunt','author','auto','autumn','average','avocado','avoid','awake','aware','awesome','awful','awkward','axis','baby','bachelor','bacon','badge','bag','balance','balcony','ball','bamboo','banana','banner','bar','barely','bargain','barrel','base','basic','basket','battle','beach','bean','beauty','because','become','beef','before','begin','behave','behind','believe','below','belt','bench','benefit','best','betray','better','between','beyond','bicycle','bid','bike','bind','biology','bird','birth','bitter','black','blade','blame','blanket','blast','bleak','bless','blind','blood','blossom','blow','blue','blur','blush','board','boat','body','boil','bomb','bone','bonus','book','boost','border','boring','borrow','boss','bottom','bounce','box','boy','bracket','brain','brand','brass','brave','bread','breeze','brick','bridge','brief','bright','bring','brisk','broccoli','broken','bronze','broom','brother','brown','brush','bubble','buddy','budget','buffalo','build','bulb','bulk','bullet','bundle','bunny','burden','burger','burst','bus','business','busy','butter','buyer','buzz','cabbage','cabin','cable','cactus','cage','cake','call','calm','camera','camp','can','canal','cancel','candy','cannon','canoe','canvas','canyon','capable','capital','captain','car','carbon','card','cargo','carpet','carry','cart','case'];
+
+let entropy = [];
+let mnemonic = [];
+let seed = '';
+let masterPriv = '';
+let masterChain = '';
+let derivedKeys = [];
+let coinType = '60';
+let addressCount = 0;
+
+function randomBytes(n) {
+  const arr = new Uint8Array(n);
+  crypto.getRandomValues(arr);
+  return arr;
+}
+
+function bytesToBits(bytes) {
+  let bits = [];
+  for (const b of bytes) {
+    for (let i = 7; i >= 0; i--) bits.push((b >> i) & 1);
+  }
+  return bits;
+}
+
+function generate(wordCount) {
+  const entropyBytes = wordCount === 12 ? 16 : 32;
+  entropy = Array.from(randomBytes(entropyBytes));
+
+  // Create checksum (first bits of SHA256 of entropy)
+  const entropyHex = entropy.map(b => b.toString(16).padStart(2, '0')).join('');
+  const hash = SHA256(entropyHex);
+  const checksumBits = wordCount === 12 ? 4 : 8;
+
+  const bits = bytesToBits(new Uint8Array(entropy));
+  // Add checksum bits
+  const hashByte = parseInt(hash.slice(0, 2), 16);
+  for (let i = 7; i >= 8 - checksumBits; i--) bits.push((hashByte >> i) & 1);
+
+  // Convert to word indices (11 bits each)
+  mnemonic = [];
+  for (let i = 0; i < wordCount; i++) {
+    let idx = 0;
+    for (let j = 0; j < 11; j++) idx = (idx << 1) | bits[i * 11 + j];
+    mnemonic.push(WORDLIST[idx % WORDLIST.length]);
+  }
+
+  renderMnemonic();
+  deriveSeed();
+}
+
+function showEntropy() {
+  if (entropy.length === 0) return;
+  const viz = document.getElementById('entropyViz');
+  const bits = bytesToBits(new Uint8Array(entropy));
+  viz.innerHTML = '<div class="entropy-viz">' + bits.map(b => `<div class="entropy-bit ${b ? 'on' : 'off'}"></div>`).join('') + '</div>';
+}
+
+function renderMnemonic() {
+  const grid = document.getElementById('mnemonicGrid');
+  grid.innerHTML = mnemonic.map((w, i) => `<div class="mnemonic-word"><span>${i + 1}</span>${w}</div>`).join('');
+}
+
+function deriveSeed() {
+  // Simulate PBKDF2 with SHA256 (simplified for demo)
+  const mnemonicStr = mnemonic.join(' ');
+  seed = SHA256(mnemonicStr + 'mnemonic') + SHA256(mnemonicStr + 'salt');
+  document.getElementById('seedValue').textContent = seed;
+
+  // Master key from HMAC-SHA512 simulation
+  masterPriv = SHA256('Bitcoin seed:' + seed.slice(0, 64));
+  masterChain = SHA256('Bitcoin seed:' + seed.slice(64));
+  document.getElementById('masterKey').textContent = masterPriv;
+  document.getElementById('chainCode').textContent = masterChain;
+
+  // Reset derivation
+  derivedKeys = [];
+  addressCount = 0;
+  deriveMore();
+}
+
+function deriveChild(parentKey, parentChain, index, hardened) {
+  const suffix = hardened ? "'" : '';
+  const input = parentKey + parentChain + index.toString() + (hardened ? 'h' : '');
+  const derived = SHA256(input);
+  const childChain = SHA256(parentChain + derived);
+  return { key: derived, chain: childChain, index, hardened };
+}
+
+function keyToAddress(privKey) {
+  // Simulate: SHA256 -> take last 40 chars as address (mimics Keccak-256 last 20 bytes)
+  const pubKey = SHA256('pub:' + privKey);
+  const addrHash = SHA256(pubKey);
+  return '0x' + addrHash.slice(-40);
+}
+
+function deriveMore() {
+  if (!masterPriv) return;
+
+  const pathParts = document.getElementById('pathSelect').value.split('-');
+  const purpose = 44;
+  coinType = pathParts[1];
+
+  // Derive: m/44'/coin'/0'/0/index
+  let key = masterPriv, chain = masterChain;
+  const steps = [
+    { idx: purpose, hard: true },
+    { idx: parseInt(coinType), hard: true },
+    { idx: 0, hard: true },
+    { idx: 0, hard: false },
+    { idx: addressCount, hard: false }
+  ];
+
+  for (const step of steps) {
+    const child = deriveChild(key, chain, step.idx, step.hard);
+    key = child.key;
+    chain = child.chain;
+  }
+
+  const address = keyToAddress(key);
+  derivedKeys.push({ index: addressCount, key, chain, address });
+  addressCount++;
+
+  renderTree();
+  updateSignSelect();
+}
+
+function changePath() {
+  derivedKeys = [];
+  addressCount = 0;
+  if (masterPriv) deriveMore();
+}
+
+function renderTree() {
+  const tree = document.getElementById('derivTree');
+  const coinNames = { '60': 'ETH', '0': 'BTC', '501': 'SOL' };
+  const coin = coinNames[coinType] || '???';
+
+  let html = `
+    <div class="tree-node"><span class="path">m</span><span class="addr">Master key</span></div>
+    <div class="tree-node indent-1"><span class="path">m/44'</span><span class="addr">Purpose: BIP-44</span></div>
+    <div class="tree-node indent-2"><span class="path">m/44'/${coinType}'</span><span class="addr">Coin: ${coin}</span></div>
+    <div class="tree-node indent-3"><span class="path">m/44'/${coinType}'/0'</span><span class="addr">Account 0</span></div>
+    <div class="tree-node indent-4"><span class="path">m/44'/${coinType}'/0'/0</span><span class="addr">External chain</span></div>
+  `;
+
+  derivedKeys.forEach(dk => {
+    html += `<div class="tree-node indent-5 ${dk.index === derivedKeys.length - 1 ? 'active' : ''}" onclick="showKeyDetail(${dk.index})">
+      <span class="path">m/44'/${coinType}'/0'/0/${dk.index}</span>
+      <span class="addr">${dk.address}</span>
+    </div>`;
+  });
+
+  tree.innerHTML = html;
+}
+
+function showKeyDetail(idx) {
+  const dk = derivedKeys[idx];
+  const detail = document.getElementById('seedValue');
+  // Highlight in tree
+  document.querySelectorAll('.tree-node').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.tree-node.indent-5')[idx]?.classList.add('active');
+}
+
+function updateSignSelect() {
+  const sel = document.getElementById('signKeyIdx');
+  sel.innerHTML = derivedKeys.map((dk, i) => `<option value="${i}">Index ${i} (${dk.address.slice(0, 10)}...)</option>`).join('');
+}
+
+function signMessage() {
+  const msg = document.getElementById('signMsg').value;
+  const idx = parseInt(document.getElementById('signKeyIdx').value) || 0;
+  if (!derivedKeys[idx]) return;
+
+  const key = derivedKeys[idx].key;
+  // Simulate ECDSA signature: SHA256(key + msg)
+  const r = SHA256(key + msg);
+  const s = SHA256(msg + key);
+  const signature = r.slice(0, 32) + s.slice(0, 32);
+
+  document.getElementById('signatureValue').textContent = signature;
+  document.getElementById('verifyResult').textContent = '-';
+}
+
+function verifyMessage() {
+  const msg = document.getElementById('signMsg').value;
+  const idx = parseInt(document.getElementById('signKeyIdx').value) || 0;
+  if (!derivedKeys[idx]) return;
+
+  const key = derivedKeys[idx].key;
+  const sig = document.getElementById('signatureValue').textContent;
+  if (sig === '-') return;
+
+  // Verify: recompute and compare
+  const r = SHA256(key + msg);
+  const s = SHA256(msg + key);
+  const expected = r.slice(0, 32) + s.slice(0, 32);
+
+  if (sig === expected) {
+    document.getElementById('verifyResult').innerHTML = '<span class="verified">VALID - Signature matches public key</span>';
+  } else {
+    document.getElementById('verifyResult').innerHTML = '<span style="color:#ef4444;font-weight:600">INVALID - Signature does not match</span>';
+  }
+}
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

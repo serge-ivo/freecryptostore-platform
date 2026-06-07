@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fork & Chain Resolution - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; min-height: 100vh; padding: 20px; }
+a.back { position: fixed; top: 20px; left: 20px; color: #f59e0b; text-decoration: none; font-weight: 600; z-index: 100; }
+a.back:hover { text-decoration: underline; }
+h1 { text-align: center; margin: 40px 0 10px; font-size: 1.8rem; color: #f59e0b; }
+.subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+.controls { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+button { background: #1a1a1a; border: 1px solid #333; color: #fafafa; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-family: inherit; font-weight: 500; transition: all 0.2s; }
+button:hover { border-color: #f59e0b; color: #f59e0b; }
+button.active { background: #f59e0b; color: #0a0a0a; border-color: #f59e0b; }
+.canvas-container { display: flex; justify-content: center; margin-bottom: 20px; }
+canvas { background: #111; border-radius: 12px; border: 1px solid #222; }
+.info-panel { max-width: 900px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.info-card { background: #111; border: 1px solid #222; border-radius: 10px; padding: 16px; }
+.info-card h3 { color: #f59e0b; margin-bottom: 8px; font-size: 0.9rem; }
+.info-card p { color: #aaa; font-size: 0.85rem; line-height: 1.5; }
+.stat { font-size: 1.4rem; font-weight: 700; color: #fafafa; }
+.timeline { max-width: 900px; margin: 20px auto 0; background: #111; border: 1px solid #222; border-radius: 10px; padding: 16px; max-height: 150px; overflow-y: auto; }
+.timeline h3 { color: #f59e0b; margin-bottom: 10px; font-size: 0.9rem; }
+.event { font-size: 0.8rem; color: #aaa; padding: 4px 0; border-bottom: 1px solid #1a1a1a; }
+.event .time { color: #666; margin-right: 8px; }
+.event .orphan { color: #ef4444; }
+.event .valid { color: #22c55e; }
+.event .fork { color: #f59e0b; }
+.legend { display: flex; gap: 16px; justify-content: center; margin: 10px 0; flex-wrap: wrap; }
+.legend span { font-size: 0.8rem; display: flex; align-items: center; gap: 6px; }
+.legend .dot { width: 10px; height: 10px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Fork & Chain Resolution</h1>
+<p class="subtitle">Watch blockchain forks resolve via the longest chain rule</p>
+
+<div class="controls">
+  <button id="btnStart" onclick="toggleSimulation()">Start Mining</button>
+  <button id="btnFork" onclick="triggerFork()">Trigger Fork</button>
+  <button id="btn51" onclick="toggle51Attack()">51% Attack</button>
+  <button id="btnReset" onclick="resetChain()">Reset</button>
+</div>
+
+<div class="legend">
+  <span><span class="dot" style="background:#22c55e"></span> Valid Block</span>
+  <span><span class="dot" style="background:#f59e0b"></span> Fork Block</span>
+  <span><span class="dot" style="background:#ef4444"></span> Orphaned</span>
+  <span><span class="dot" style="background:#6366f1"></span> Attacker</span>
+</div>
+
+<div class="canvas-container">
+  <canvas id="chainCanvas" width="900" height="300"></canvas>
+</div>
+
+<div class="info-panel">
+  <div class="info-card">
+    <h3>Main Chain Length</h3>
+    <p class="stat" id="mainLength">1</p>
+  </div>
+  <div class="info-card">
+    <h3>Orphaned Blocks</h3>
+    <p class="stat" id="orphanCount">0</p>
+  </div>
+  <div class="info-card">
+    <h3>Active Forks</h3>
+    <p class="stat" id="forkCount">0</p>
+  </div>
+  <div class="info-card">
+    <h3>Mempool Txns</h3>
+    <p class="stat" id="mempoolCount">12</p>
+  </div>
+</div>
+
+<div class="timeline">
+  <h3>Event Log</h3>
+  <div id="eventLog"></div>
+</div>
+
+<script>
+const canvas = document.getElementById('chainCanvas');
+const ctx = canvas.getContext('2d');
+let running = false;
+let attackMode = false;
+let blocks = [];
+let forks = [];
+let orphans = [];
+let events = [];
+let mempool = 12;
+let timer = null;
+let tick = 0;
+
+class Block {
+  constructor(x, y, height, chain, isAttacker) {
+    this.x = x; this.y = y; this.height = height;
+    this.chain = chain; this.isAttacker = isAttacker;
+    this.orphaned = false; this.txCount = Math.floor(Math.random() * 5) + 1;
+  }
+}
+
+function init() {
+  blocks = [new Block(60, 140, 0, 'main', false)];
+  forks = []; orphans = []; events = []; mempool = 12; tick = 0;
+  addEvent('Genesis block created', 'valid');
+  draw();
+  updateStats();
+}
+
+function addEvent(msg, type) {
+  events.unshift({ msg, type, time: tick });
+  if (events.length > 50) events.pop();
+  renderEvents();
+}
+
+function renderEvents() {
+  const log = document.getElementById('eventLog');
+  log.innerHTML = events.map(e =>
+    `<div class="event"><span class="time">t=${e.time}</span><span class="${e.type}">${e.msg}</span></div>`
+  ).join('');
+}
+
+function updateStats() {
+  const mainChain = blocks.filter(b => b.chain === 'main' && !b.orphaned);
+  document.getElementById('mainLength').textContent = mainChain.length;
+  document.getElementById('orphanCount').textContent = orphans.length;
+  document.getElementById('forkCount').textContent = forks.filter(f => !f.resolved).length;
+  document.getElementById('mempoolCount').textContent = mempool;
+}
+
+function getChainTip(chain) {
+  const chainBlocks = blocks.filter(b => b.chain === chain && !b.orphaned);
+  return chainBlocks[chainBlocks.length - 1];
+}
+
+function mineBlock() {
+  tick++;
+  const mainTip = getChainTip('main');
+  if (!mainTip) return;
+
+  // Check if any fork should be resolved
+  forks.forEach(f => {
+    if (f.resolved) return;
+    const forkBlocks = blocks.filter(b => b.chain === f.id && !b.orphaned);
+    const mainBlocks = blocks.filter(b => b.chain === 'main' && !b.orphaned);
+    if (mainBlocks.length - f.forkPoint > 2 && !f.resolved) {
+      f.resolved = true;
+      forkBlocks.forEach(b => { b.orphaned = true; orphans.push(b); });
+      mempool += forkBlocks.reduce((s, b) => s + b.txCount, 0);
+      addEvent(`Fork "${f.id}" abandoned. ${forkBlocks.length} blocks orphaned, txns return to mempool.`, 'orphan');
+    } else if (forkBlocks.length - 1 > mainBlocks.length - f.forkPoint && !f.resolved) {
+      f.resolved = true;
+      const toOrphan = mainBlocks.filter(b => b.height > f.forkPoint);
+      toOrphan.forEach(b => { b.orphaned = true; b.chain = 'orphan'; orphans.push(b); });
+      forkBlocks.forEach(b => { b.chain = 'main'; });
+      mempool += toOrphan.reduce((s, b) => s + b.txCount, 0);
+      addEvent(`Fork "${f.id}" won! Main chain reorganized. Double-spend possible!`, 'orphan');
+    }
+  });
+
+  // Mine on main chain or attacker fork
+  const willForkGrow = forks.some(f => !f.resolved) && Math.random() < (attackMode ? 0.7 : 0.4);
+
+  if (willForkGrow) {
+    const activeFork = forks.find(f => !f.resolved);
+    if (activeFork) {
+      const forkTip = getChainTip(activeFork.id);
+      if (forkTip) {
+        const newBlock = new Block(forkTip.x + 70, forkTip.y, forkTip.height + 1, activeFork.id, attackMode);
+        blocks.push(newBlock);
+        mempool = Math.max(0, mempool - newBlock.txCount);
+        addEvent(`Block #${newBlock.height} mined on fork "${activeFork.id}"${attackMode ? ' (attacker)' : ''}`, 'fork');
+      }
+    }
+  } else {
+    const newBlock = new Block(mainTip.x + 70, 140, mainTip.height + 1, 'main', false);
+    blocks.push(newBlock);
+    mempool = Math.max(0, mempool - newBlock.txCount);
+    addEvent(`Block #${newBlock.height} mined on main chain`, 'valid');
+  }
+
+  mempool += Math.floor(Math.random() * 3);
+  draw();
+  updateStats();
+}
+
+function triggerFork() {
+  const mainTip = getChainTip('main');
+  if (!mainTip) return;
+  const forkId = `fork-${forks.length + 1}`;
+  const yOffset = (forks.filter(f => !f.resolved).length + 1) * 60;
+  const forkBlock = new Block(mainTip.x + 70, 140 + yOffset, mainTip.height + 1, forkId, attackMode);
+  blocks.push(forkBlock);
+  forks.push({ id: forkId, forkPoint: mainTip.height, resolved: false });
+  addEvent(`Fork detected! Two miners found block #${forkBlock.height} simultaneously.`, 'fork');
+  // Also mine on main
+  const mainBlock = new Block(mainTip.x + 70, 140, mainTip.height + 1, 'main', false);
+  blocks.push(mainBlock);
+  mempool = Math.max(0, mempool - 2);
+  draw();
+  updateStats();
+}
+
+function toggle51Attack() {
+  attackMode = !attackMode;
+  document.getElementById('btn51').classList.toggle('active', attackMode);
+  addEvent(attackMode ? '51% attack mode ON - attacker has majority hash power' : '51% attack mode OFF', attackMode ? 'orphan' : 'valid');
+}
+
+function toggleSimulation() {
+  running = !running;
+  document.getElementById('btnStart').textContent = running ? 'Pause' : 'Start Mining';
+  document.getElementById('btnStart').classList.toggle('active', running);
+  if (running) {
+    timer = setInterval(mineBlock, 1200);
+  } else {
+    clearInterval(timer);
+  }
+}
+
+function resetChain() {
+  if (running) toggleSimulation();
+  init();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const offsetX = Math.max(0, (blocks.filter(b => b.chain === 'main').length - 10) * 70);
+
+  blocks.forEach(b => {
+    const x = b.x - offsetX;
+    if (x < -50 || x > canvas.width + 50) return;
+    ctx.beginPath();
+    ctx.roundRect(x - 25, b.y - 18, 50, 36, 6);
+    if (b.orphaned) {
+      ctx.fillStyle = '#3a1111'; ctx.strokeStyle = '#ef4444';
+    } else if (b.isAttacker) {
+      ctx.fillStyle = '#1e1b4b'; ctx.strokeStyle = '#6366f1';
+    } else if (b.chain !== 'main') {
+      ctx.fillStyle = '#1a1500'; ctx.strokeStyle = '#f59e0b';
+    } else {
+      ctx.fillStyle = '#0a1a0a'; ctx.strokeStyle = '#22c55e';
+    }
+    ctx.fill(); ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#fafafa'; ctx.font = '11px Manrope'; ctx.textAlign = 'center';
+    ctx.fillText(`#${b.height}`, x, b.y + 4);
+  });
+
+  // Draw connections
+  ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+  blocks.forEach((b, i) => {
+    if (i === 0) return;
+    const parent = blocks.find(p => p.height === b.height - 1 && (p.chain === b.chain || (b.chain !== 'main' && p.chain === 'main' && p.height === forks.find(f => f.id === b.chain)?.forkPoint)));
+    if (parent) {
+      const x1 = parent.x - offsetX; const x2 = b.x - offsetX;
+      ctx.beginPath(); ctx.moveTo(x1 + 25, parent.y); ctx.lineTo(x2 - 25, b.y);
+      ctx.strokeStyle = b.orphaned ? '#ef444466' : '#444'; ctx.stroke();
+    }
+  });
+  ctx.setLineDash([]);
+}
+
+init();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

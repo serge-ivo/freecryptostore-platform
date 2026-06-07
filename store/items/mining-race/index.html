@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mining Race Visualization - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;padding:20px;min-height:100vh}
+a.back{position:fixed;top:20px;left:20px;color:#f59e0b;text-decoration:none;font-weight:600;z-index:100}
+a.back:hover{text-decoration:underline}
+h1{text-align:center;margin:40px 0 10px;font-size:2rem;color:#f59e0b}
+.subtitle{text-align:center;color:#888;margin-bottom:30px}
+.container{max-width:1000px;margin:0 auto}
+.controls{background:#141414;border:1px solid #222;border-radius:12px;padding:20px;margin-bottom:20px;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.controls label{color:#888;font-size:0.85rem}
+.controls select,.controls input{background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:8px 12px;color:#fafafa;font-family:'Manrope',system-ui,sans-serif}
+.controls button{background:#f59e0b;color:#0a0a0a;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-weight:600;font-family:'Manrope',system-ui,sans-serif}
+.controls button:hover{background:#d97706}
+.controls button.secondary{background:#333;color:#fafafa}
+.controls button.secondary:hover{background:#444}
+.controls button:disabled{background:#555;cursor:not-allowed}
+.miners-section{background:#141414;border:1px solid #222;border-radius:12px;padding:24px;margin-bottom:20px}
+.miner-row{display:grid;grid-template-columns:100px 1fr 120px;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #1a1a1a}
+.miner-row:last-child{border-bottom:none}
+.miner-info{display:flex;align-items:center;gap:10px}
+.miner-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.9rem}
+.miner-name{font-weight:600;font-size:0.9rem}
+.miner-hashrate{font-size:0.75rem;color:#888}
+.miner-progress{position:relative;height:32px;background:#1a1a1a;border-radius:6px;overflow:hidden}
+.miner-bar{height:100%;border-radius:6px;transition:width 0.1s;display:flex;align-items:center;padding:0 10px}
+.miner-nonce{font-family:monospace;font-size:0.7rem;color:#0a0a0a;font-weight:600;white-space:nowrap;overflow:hidden}
+.miner-stats{text-align:right;font-size:0.8rem}
+.miner-stats .blocks{color:#f59e0b;font-weight:700}
+.miner-stats .attempts{color:#666;font-size:0.7rem}
+.winner-flash{animation:flash 0.5s ease-out}
+@keyframes flash{0%{background:#f59e0b33}100%{background:transparent}}
+.chain-section{background:#141414;border:1px solid #222;border-radius:12px;padding:24px;margin-bottom:20px}
+.chain-section h2{color:#f59e0b;margin-bottom:16px;font-size:1rem}
+.chain{display:flex;gap:8px;overflow-x:auto;padding:8px 0}
+.block{min-width:80px;background:#1a1a1a;border:2px solid #333;border-radius:8px;padding:10px;text-align:center;font-size:0.7rem;flex-shrink:0}
+.block .block-num{color:#f59e0b;font-weight:700;font-size:0.9rem}
+.block .block-miner{color:#888;margin-top:4px}
+.block .block-hash{font-family:monospace;color:#555;margin-top:4px;font-size:0.65rem}
+.block-connector{display:flex;align-items:center;color:#333;font-size:1.2rem;flex-shrink:0}
+.stats-section{background:#141414;border:1px solid #222;border-radius:12px;padding:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}
+.stat-box h3{color:#f59e0b;font-size:0.8rem;text-transform:uppercase;margin-bottom:4px}
+.stat-box .stat-value{font-size:1.4rem;font-weight:700}
+.stat-box .stat-detail{font-size:0.8rem;color:#888;margin-top:4px}
+.reward-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#141414;border:2px solid #f59e0b;border-radius:16px;padding:30px;text-align:center;z-index:200;display:none;animation:popIn 0.3s}
+@keyframes popIn{0%{transform:translate(-50%,-50%) scale(0.5);opacity:0}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
+.reward-popup h2{color:#f59e0b;margin-bottom:8px}
+.reward-popup p{color:#888}
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<div class="container">
+<h1>Mining Race Visualization</h1>
+<p class="subtitle">Watch miners compete to find valid hashes</p>
+
+<div class="controls">
+<label>Difficulty:</label>
+<select id="difficulty" onchange="updateDifficulty()">
+<option value="1">1 zero</option>
+<option value="2" selected>2 zeros</option>
+<option value="3">3 zeros</option>
+<option value="4">4 zeros</option>
+<option value="5">5 zeros</option>
+</select>
+<label>Block reward:</label>
+<span style="color:#f59e0b;font-weight:700" id="rewardDisplay">6.25 BTC</span>
+<button id="mineBtn" onclick="startMining()">Start Race</button>
+<button class="secondary" onclick="stopMining()">Stop</button>
+<button class="secondary" onclick="toggleAuto()">Auto: <span id="autoLabel">Off</span></button>
+<button class="secondary" onclick="resetAll()">Reset</button>
+</div>
+
+<div class="miners-section">
+<div id="minerRows"></div>
+</div>
+
+<div class="chain-section">
+<h2>Blockchain</h2>
+<div class="chain" id="chainViz">
+<div class="block"><div class="block-num">#0</div><div class="block-miner">Genesis</div><div class="block-hash">000000...</div></div>
+</div>
+</div>
+
+<div class="stats-section">
+<div class="stat-box"><h3>Total Blocks</h3><div class="stat-value" id="totalBlocks">0</div></div>
+<div class="stat-box"><h3>Total Attempts</h3><div class="stat-value" id="totalAttempts">0</div><div class="stat-detail" id="avgAttempts">Avg: -</div></div>
+<div class="stat-box"><h3>Network Hashrate</h3><div class="stat-value" id="networkHash">0</div><div class="stat-detail">hashes/sec</div></div>
+<div class="stat-box"><h3>Luckiest Miner</h3><div class="stat-value" id="luckiest">-</div><div class="stat-detail" id="luckDetail">-</div></div>
+</div>
+</div>
+
+<div class="reward-popup" id="rewardPopup">
+<h2 id="popupTitle">Block Found!</h2>
+<p id="popupDetail"></p>
+</div>
+
+<script>
+const SHA256=(function(){const K=new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);function rotr(n,x){return(x>>>n)|(x<<(32-n))}return function(msg){const bytes=new TextEncoder().encode(msg);const len=bytes.length;const bl=((len+9+63)&~63);const buf=new Uint8Array(bl);buf.set(bytes);buf[len]=0x80;const dv=new DataView(buf.buffer);dv.setUint32(bl-4,len*8,false);let h0=0x6a09e667,h1=0xbb67ae85,h2=0x3c6ef372,h3=0xa54ff53a,h4=0x510e527f,h5=0x9b05688c,h6=0x1f83d9ab,h7=0x5be0cd19;const w=new Uint32Array(64);for(let i=0;i<bl;i+=64){for(let j=0;j<16;j++)w[j]=dv.getUint32(i+j*4,false);for(let j=16;j<64;j++){const s0=rotr(7,w[j-15])^rotr(18,w[j-15])^(w[j-15]>>>3);const s1=rotr(17,w[j-2])^rotr(19,w[j-2])^(w[j-2]>>>10);w[j]=(w[j-16]+s0+w[j-7]+s1)|0}let a=h0,b=h1,c=h2,d=h3,e=h4,f=h5,g=h6,h=h7;for(let j=0;j<64;j++){const S1=rotr(6,e)^rotr(11,e)^rotr(25,e);const ch=(e&f)^(~e&g);const t1=(h+S1+ch+K[j]+w[j])|0;const S0=rotr(2,a)^rotr(13,a)^rotr(22,a);const maj=(a&b)^(a&c)^(b&c);const t2=(S0+maj)|0;h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0}h0=(h0+a)|0;h1=(h1+b)|0;h2=(h2+c)|0;h3=(h3+d)|0;h4=(h4+e)|0;h5=(h5+f)|0;h6=(h6+g)|0;h7=(h7+h)|0}return[h0,h1,h2,h3,h4,h5,h6,h7].map(v=>(v>>>0).toString(16).padStart(8,'0')).join('')}})();
+
+const MINER_NAMES = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon'];
+const MINER_COLORS = ['#f59e0b', '#3b82f6', '#22c55e', '#a855f7', '#ec4899'];
+
+let miners = [];
+let blockchain = [{ num: 0, miner: 'Genesis', hash: '000000...', nonce: 0 }];
+let mining = false;
+let autoMode = false;
+let autoTimer = null;
+let difficulty = 2;
+let totalAttemptsAll = 0;
+let miningFrame = null;
+let blockStartTime = 0;
+
+function initMiners() {
+  miners = MINER_NAMES.map((name, i) => ({
+    name,
+    color: MINER_COLORS[i],
+    hashrate: Math.floor(Math.random() * 800) + 200, // hashes per "tick"
+    blocks: 0,
+    totalAttempts: 0,
+    nonce: Math.floor(Math.random() * 1000000),
+    progress: 0,
+    currentHash: '',
+    luck: []
+  }));
+  renderMiners();
+}
+
+function renderMiners() {
+  const el = document.getElementById('minerRows');
+  el.innerHTML = miners.map((m, i) => `
+    <div class="miner-row" id="miner-${i}">
+      <div class="miner-info">
+        <div class="miner-avatar" style="background:${m.color}22;color:${m.color};border:2px solid ${m.color}">${m.name[0]}</div>
+        <div>
+          <div class="miner-name">${m.name}</div>
+          <div class="miner-hashrate">${m.hashrate} H/s</div>
+        </div>
+      </div>
+      <div class="miner-progress">
+        <div class="miner-bar" id="bar-${i}" style="width:0%;background:${m.color}"></div>
+      </div>
+      <div class="miner-stats">
+        <div class="blocks" id="blocks-${i}">${m.blocks} blocks</div>
+        <div class="attempts" id="attempts-${i}">0 attempts</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateDifficulty() {
+  difficulty = parseInt(document.getElementById('difficulty').value);
+}
+
+function startMining() {
+  if (mining) return;
+  mining = true;
+  document.getElementById('mineBtn').disabled = true;
+  blockStartTime = Date.now();
+
+  // Reset nonces for this round
+  miners.forEach(m => { m.nonce = Math.floor(Math.random() * 1000000); m.progress = 0; });
+
+  miningFrame = requestAnimationFrame(mineStep);
+}
+
+function mineStep() {
+  if (!mining) return;
+
+  const target = '0'.repeat(difficulty);
+  const prevHash = blockchain[blockchain.length - 1].hash;
+  let winner = null;
+  let winnerAttempts = 0;
+
+  miners.forEach((m, i) => {
+    if (winner) return;
+
+    // Each miner tries proportional to their hashrate
+    const attempts = Math.ceil(m.hashrate / 60);
+    for (let a = 0; a < attempts; a++) {
+      m.nonce++;
+      m.totalAttempts++;
+      totalAttemptsAll++;
+
+      const input = `${prevHash}:${m.name}:${m.nonce}`;
+      const hash = SHA256(input);
+
+      if (hash.startsWith(target)) {
+        winner = m;
+        winnerAttempts = m.nonce;
+        m.currentHash = hash;
+        break;
+      }
+      m.currentHash = hash;
+    }
+
+    // Update progress bar (estimate based on probability)
+    const expectedAttempts = Math.pow(16, difficulty);
+    m.progress = Math.min((m.nonce / expectedAttempts) * 100, 95);
+
+    // Update UI
+    const bar = document.getElementById(`bar-${i}`);
+    if (bar) {
+      bar.style.width = m.progress + '%';
+      bar.innerHTML = `<span class="miner-nonce">${m.currentHash.slice(0, 16)}... (nonce: ${m.nonce})</span>`;
+    }
+    document.getElementById(`attempts-${i}`).textContent = `${m.nonce.toLocaleString()} attempts`;
+  });
+
+  if (winner) {
+    foundBlock(winner);
+  } else {
+    miningFrame = requestAnimationFrame(mineStep);
+  }
+}
+
+function foundBlock(winner) {
+  mining = false;
+  document.getElementById('mineBtn').disabled = false;
+
+  winner.blocks++;
+  const elapsed = (Date.now() - blockStartTime) / 1000;
+  const blockNum = blockchain.length;
+
+  // Calculate luck (expected vs actual attempts)
+  const expectedAttempts = Math.pow(16, difficulty);
+  const luckFactor = (expectedAttempts / winner.nonce).toFixed(2);
+  winner.luck.push(parseFloat(luckFactor));
+
+  // Add block
+  blockchain.push({
+    num: blockNum,
+    miner: winner.name,
+    hash: winner.currentHash.slice(0, 8),
+    nonce: winner.nonce,
+    color: winner.color
+  });
+
+  // Flash winner row
+  const row = document.getElementById(`miner-${miners.indexOf(winner)}`);
+  row.classList.remove('winner-flash');
+  void row.offsetWidth;
+  row.classList.add('winner-flash');
+
+  // Update winner bar to 100%
+  const bar = document.getElementById(`bar-${miners.indexOf(winner)}`);
+  bar.style.width = '100%';
+
+  // Update blocks display
+  miners.forEach((m, i) => {
+    document.getElementById(`blocks-${i}`).textContent = `${m.blocks} blocks`;
+  });
+
+  // Show popup briefly
+  const popup = document.getElementById('rewardPopup');
+  document.getElementById('popupTitle').textContent = `${winner.name} found Block #${blockNum}!`;
+  document.getElementById('popupDetail').textContent = `Nonce: ${winner.nonce.toLocaleString()} | Time: ${elapsed.toFixed(1)}s | Luck: ${luckFactor}x`;
+  popup.style.display = 'block';
+  setTimeout(() => { popup.style.display = 'none'; }, 2000);
+
+  // Update chain visualization
+  renderChain();
+  updateStats();
+
+  // Auto mode
+  if (autoMode) autoTimer = setTimeout(startMining, 1500);
+}
+
+function renderChain() {
+  const chain = document.getElementById('chainViz');
+  const blocks = blockchain.slice(-10); // Show last 10
+  chain.innerHTML = blocks.map((b, i) => {
+    const connector = i > 0 ? '<div class="block-connector">&#8594;</div>' : '';
+    const borderColor = b.color || '#333';
+    return `${connector}<div class="block" style="border-color:${borderColor}">
+      <div class="block-num">#${b.num}</div>
+      <div class="block-miner" style="color:${borderColor}">${b.miner}</div>
+      <div class="block-hash">${b.hash}</div>
+    </div>`;
+  }).join('');
+  chain.scrollLeft = chain.scrollWidth;
+}
+
+function updateStats() {
+  document.getElementById('totalBlocks').textContent = blockchain.length - 1;
+  document.getElementById('totalAttempts').textContent = totalAttemptsAll.toLocaleString();
+
+  const avgAtt = blockchain.length > 1 ? Math.round(totalAttemptsAll / (blockchain.length - 1)) : 0;
+  document.getElementById('avgAttempts').textContent = `Avg: ${avgAtt.toLocaleString()} per block`;
+
+  const totalHashrate = miners.reduce((s, m) => s + m.hashrate, 0);
+  document.getElementById('networkHash').textContent = totalHashrate.toLocaleString();
+
+  // Find luckiest
+  let luckiest = miners[0];
+  let bestLuck = 0;
+  miners.forEach(m => {
+    if (m.luck.length > 0) {
+      const avg = m.luck.reduce((s, l) => s + l, 0) / m.luck.length;
+      if (avg > bestLuck) { bestLuck = avg; luckiest = m; }
+    }
+  });
+  document.getElementById('luckiest').textContent = luckiest.blocks > 0 ? luckiest.name : '-';
+  document.getElementById('luckDetail').textContent = luckiest.blocks > 0 ? `Avg luck: ${bestLuck.toFixed(2)}x` : '-';
+}
+
+function stopMining() {
+  mining = false;
+  if (miningFrame) cancelAnimationFrame(miningFrame);
+  document.getElementById('mineBtn').disabled = false;
+  if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+}
+
+function toggleAuto() {
+  autoMode = !autoMode;
+  document.getElementById('autoLabel').textContent = autoMode ? 'On' : 'Off';
+  if (autoMode && !mining) startMining();
+  if (!autoMode) { if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; } }
+}
+
+function resetAll() {
+  stopMining();
+  autoMode = false;
+  document.getElementById('autoLabel').textContent = 'Off';
+  blockchain = [{ num: 0, miner: 'Genesis', hash: '000000...', nonce: 0 }];
+  totalAttemptsAll = 0;
+  initMiners();
+  renderChain();
+  updateStats();
+}
+
+// Init
+initMiners();
+renderChain();
+updateStats();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

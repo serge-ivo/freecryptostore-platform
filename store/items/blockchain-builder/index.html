@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blockchain Builder - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fafafa;font-family:Manrope,system-ui,sans-serif;overflow-x:hidden}
+.back{position:fixed;top:12px;left:12px;z-index:99;color:#f59e0b;text-decoration:none;font-size:.8rem;font-weight:600;opacity:.7}.back:hover{opacity:1}
+h1{text-align:center;color:#f59e0b;margin:16px 0 4px;font-size:1.5rem;font-weight:700}
+.sub{text-align:center;color:#737373;font-size:.82rem;margin-bottom:10px;max-width:650px;margin-left:auto;margin-right:auto}
+.wrap{display:flex;gap:12px;padding:0 12px;max-width:1200px;margin:0 auto;flex-wrap:wrap}
+.chain{flex:1;min-width:0;overflow-x:auto;display:flex;gap:8px;padding:10px 0;align-items:flex-start}
+.block{background:#141414;border:1px solid #262626;border-radius:10px;padding:10px;min-width:220px;max-width:240px;flex-shrink:0;transition:border-color .2s}
+.block.mining{border-color:#f59e0b;animation:pulse 1s infinite}
+.block.valid{border-color:#10b981}
+.block.invalid{border-color:#ef4444}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0.3)}50%{box-shadow:0 0 12px 4px rgba(245,158,11,0.15)}}
+.block-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.block-num{font-size:.7rem;color:#f59e0b;font-weight:700}
+.block-status{font-size:.6rem;padding:2px 6px;border-radius:3px;font-weight:600}
+.block-status.valid{background:rgba(16,185,129,0.15);color:#10b981}
+.block-status.invalid{background:rgba(239,68,68,0.15);color:#ef4444}
+.block-status.mining{background:rgba(245,158,11,0.15);color:#f59e0b}
+.field{margin:3px 0}
+.field-label{font-size:.6rem;color:#525252;text-transform:uppercase;letter-spacing:.5px}
+.field-value{font-size:.68rem;color:#a3a3a3;font-family:'Courier New',monospace;word-break:break-all;max-height:2.4em;overflow:hidden}
+.field-value.hash{color:#f59e0b}
+.field-value.prev{color:#6366f1}
+.field-value.nonce{color:#10b981}
+.panel{width:300px;flex-shrink:0}
+.panel-section{background:#141414;border:1px solid #262626;border-radius:10px;padding:12px;margin-bottom:10px}
+.panel-section h3{color:#f59e0b;font-size:.82rem;margin-bottom:8px}
+.ctrl label{font-size:.7rem;color:#a3a3a3;display:flex;justify-content:space-between;margin:4px 0}
+.ctrl input[type=range]{width:100%;accent-color:#f59e0b}
+.ctrl input[type=text],.ctrl textarea{width:100%;background:#0a0a0a;border:1px solid #333;color:#fafafa;padding:5px 8px;border-radius:4px;font-size:.72rem;font-family:'Courier New',monospace;margin:3px 0}
+.ctrl textarea{height:50px;resize:vertical}
+.btn{background:#f59e0b;color:#000;border:none;padding:7px 14px;border-radius:6px;font-size:.76rem;font-weight:600;cursor:pointer;width:100%;margin:4px 0;font-family:Manrope,system-ui,sans-serif}.btn:hover{background:#d97706}
+.btn.sec{background:#262626;color:#fafafa}.btn.sec:hover{background:#333}
+.stats{font-size:.68rem;color:#737373;line-height:1.7;margin-top:6px}
+.stats b{color:#fafafa}
+.info{font-size:.65rem;color:#525252;background:#1a1a1a;border-radius:6px;padding:8px;margin-top:8px;line-height:1.5}
+.info b{color:#a3a3a3}
+footer{text-align:center;padding:20px;font-size:.65rem;color:#404040}
+footer a{color:#f59e0b;text-decoration:none}
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Blockchain Builder</h1>
+<p class="sub">Build a blockchain from scratch. Add transactions, mine blocks, tamper with data, and watch the chain validate or break. Adjust difficulty to see how proof-of-work scales.</p>
+
+<div class="wrap">
+<div class="chain" id="chain"></div>
+<div class="panel">
+<div class="panel-section">
+<h3>Mine New Block</h3>
+<div class="ctrl">
+<label>Transactions</label>
+<textarea id="txData" placeholder="Alice -> Bob: 5 BTC&#10;Bob -> Charlie: 2 BTC">Alice -> Bob: 5 BTC
+Bob -> Charlie: 2 BTC</textarea>
+<label>Difficulty (leading zeros) <span id="diffV">2</span></label>
+<input type="range" id="difficulty" min="1" max="5" value="2">
+</div>
+<button class="btn" id="mineBtn">Mine Block</button>
+<button class="btn sec" id="resetBtn">Reset Chain</button>
+</div>
+
+<div class="panel-section">
+<h3>Tamper Test</h3>
+<div class="ctrl">
+<label>Block # to tamper</label>
+<input type="text" id="tamperBlock" placeholder="1" value="1">
+<label>New data</label>
+<input type="text" id="tamperData" placeholder="Alice -> Eve: 100 BTC">
+</div>
+<button class="btn sec" id="tamperBtn">Tamper & Validate</button>
+</div>
+
+<div class="panel-section">
+<h3>Chain Stats</h3>
+<div class="stats">
+Blocks: <b id="blockCount">1</b><br>
+Total hashes computed: <b id="totalHashes">0</b><br>
+Avg time/block: <b id="avgTime">-</b><br>
+Chain valid: <b id="chainValid">Yes</b><br>
+Difficulty: <b id="diffDisplay">2</b> (prefix: <b id="prefixDisplay">00</b>)
+</div>
+</div>
+
+<div class="info">
+<b>How it works:</b> Each block contains data, a timestamp, the previous block's hash, and a nonce. Mining = finding a nonce that makes the block's SHA-256 hash start with N zeros. Tampering with any block invalidates it and every block after it.
+</div>
+</div>
+</div>
+
+<footer>Built with <a href="/">FreeCryptoStore</a> building blocks</footer>
+
+<script>
+// Simple SHA-256 implementation (SubtleCrypto is async, we need sync for visualization)
+// Using a fast JS SHA-256
+const SHA256 = (function() {
+  const K = new Uint32Array([
+    0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+  ]);
+  function rotr(n,x){return(x>>>n)|(x<<(32-n));}
+  function sha256(msg){
+    const bytes=new TextEncoder().encode(msg);
+    const len=bytes.length;
+    const bl=((len+9+63)&~63);
+    const buf=new Uint8Array(bl);
+    buf.set(bytes);buf[len]=0x80;
+    const dv=new DataView(buf.buffer);
+    dv.setUint32(bl-4,len*8,false);
+    let h0=0x6a09e667,h1=0xbb67ae85,h2=0x3c6ef372,h3=0xa54ff53a;
+    let h4=0x510e527f,h5=0x9b05688c,h6=0x1f83d9ab,h7=0x5be0cd19;
+    const w=new Uint32Array(64);
+    for(let i=0;i<bl;i+=64){
+      for(let j=0;j<16;j++)w[j]=dv.getUint32(i+j*4,false);
+      for(let j=16;j<64;j++){
+        const s0=rotr(7,w[j-15])^rotr(18,w[j-15])^(w[j-15]>>>3);
+        const s1=rotr(17,w[j-2])^rotr(19,w[j-2])^(w[j-2]>>>10);
+        w[j]=(w[j-16]+s0+w[j-7]+s1)|0;
+      }
+      let a=h0,b=h1,c=h2,d=h3,e=h4,f=h5,g=h6,h=h7;
+      for(let j=0;j<64;j++){
+        const S1=rotr(6,e)^rotr(11,e)^rotr(25,e);
+        const ch=(e&f)^(~e&g);
+        const t1=(h+S1+ch+K[j]+w[j])|0;
+        const S0=rotr(2,a)^rotr(13,a)^rotr(22,a);
+        const maj=(a&b)^(a&c)^(b&c);
+        const t2=(S0+maj)|0;
+        h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;
+      }
+      h0=(h0+a)|0;h1=(h1+b)|0;h2=(h2+c)|0;h3=(h3+d)|0;
+      h4=(h4+e)|0;h5=(h5+f)|0;h6=(h6+g)|0;h7=(h7+h)|0;
+    }
+    return [h0,h1,h2,h3,h4,h5,h6,h7].map(v=>(v>>>0).toString(16).padStart(8,'0')).join('');
+  }
+  return sha256;
+})();
+
+let blockchain = [];
+let totalHashes = 0;
+let miningTimes = [];
+let difficulty = 2;
+
+function createGenesisBlock() {
+  return {
+    index: 0,
+    timestamp: Date.now(),
+    data: 'Genesis Block',
+    previousHash: '0'.repeat(64),
+    nonce: 0,
+    hash: SHA256('0' + Date.now() + 'Genesis Block' + '0'.repeat(64) + '0')
+  };
+}
+
+function mineBlock(index, data, previousHash, diff) {
+  const prefix = '0'.repeat(diff);
+  let nonce = 0;
+  let hash = '';
+  const start = performance.now();
+
+  while (true) {
+    hash = SHA256(index + Date.now() + data + previousHash + nonce);
+    totalHashes++;
+    if (hash.startsWith(prefix)) break;
+    nonce++;
+    if (nonce > 1000000) break; // safety limit
+  }
+
+  const elapsed = performance.now() - start;
+  miningTimes.push(elapsed);
+
+  return {
+    index,
+    timestamp: Date.now(),
+    data,
+    previousHash,
+    nonce,
+    hash
+  };
+}
+
+function validateChain() {
+  const prefix = '0'.repeat(difficulty);
+  for (let i = 1; i < blockchain.length; i++) {
+    const block = blockchain[i];
+    const prevBlock = blockchain[i - 1];
+
+    // Check hash link
+    if (block.previousHash !== prevBlock.hash) return { valid: false, broken: i };
+
+    // Check hash validity
+    const computed = SHA256(block.index + block.timestamp + block.data + block.previousHash + block.nonce);
+    if (computed !== block.hash) return { valid: false, broken: i };
+  }
+  return { valid: true, broken: -1 };
+}
+
+function renderChain() {
+  const container = document.getElementById('chain');
+  const validation = validateChain();
+
+  container.innerHTML = blockchain.map((block, i) => {
+    let statusClass = 'valid';
+    let statusText = 'Valid';
+    if (!validation.valid && i >= validation.broken) {
+      statusClass = 'invalid';
+      statusText = 'Invalid';
+    }
+    if (i === 0) { statusClass = 'valid'; statusText = 'Genesis'; }
+
+    return `<div class="block ${statusClass}">
+      <div class="block-header">
+        <span class="block-num">Block #${block.index}</span>
+        <span class="block-status ${statusClass}">${statusText}</span>
+      </div>
+      <div class="field"><div class="field-label">Hash</div><div class="field-value hash">${block.hash}</div></div>
+      <div class="field"><div class="field-label">Prev Hash</div><div class="field-value prev">${block.previousHash.slice(0, 20)}...</div></div>
+      <div class="field"><div class="field-label">Data</div><div class="field-value">${block.data.slice(0, 60)}</div></div>
+      <div class="field"><div class="field-label">Nonce</div><div class="field-value nonce">${block.nonce}</div></div>
+      <div class="field"><div class="field-label">Time</div><div class="field-value">${new Date(block.timestamp).toLocaleTimeString()}</div></div>
+    </div>`;
+  }).join('');
+
+  // Scroll to end
+  container.scrollLeft = container.scrollWidth;
+
+  // Update stats
+  document.getElementById('blockCount').textContent = blockchain.length;
+  document.getElementById('totalHashes').textContent = totalHashes.toLocaleString();
+  document.getElementById('avgTime').textContent = miningTimes.length ?
+    (miningTimes.reduce((a,b)=>a+b,0)/miningTimes.length).toFixed(0) + 'ms' : '-';
+  document.getElementById('chainValid').textContent = validation.valid ? 'Yes' : 'No (broken at #' + validation.broken + ')';
+  document.getElementById('chainValid').style.color = validation.valid ? '#10b981' : '#ef4444';
+}
+
+function updateDifficulty() {
+  difficulty = +document.getElementById('difficulty').value;
+  document.getElementById('diffV').textContent = difficulty;
+  document.getElementById('diffDisplay').textContent = difficulty;
+  document.getElementById('prefixDisplay').textContent = '0'.repeat(difficulty);
+}
+
+// Init
+blockchain = [createGenesisBlock()];
+renderChain();
+
+document.getElementById('difficulty').oninput = updateDifficulty;
+
+document.getElementById('mineBtn').onclick = function() {
+  const data = document.getElementById('txData').value || 'Empty block';
+  const prevHash = blockchain[blockchain.length - 1].hash;
+  const newBlock = mineBlock(blockchain.length, data, prevHash, difficulty);
+  blockchain.push(newBlock);
+  renderChain();
+};
+
+document.getElementById('tamperBtn').onclick = function() {
+  const idx = parseInt(document.getElementById('tamperBlock').value);
+  const newData = document.getElementById('tamperData').value || 'TAMPERED';
+  if (idx >= 0 && idx < blockchain.length) {
+    blockchain[idx].data = newData;
+    // Recalculate hash to show it breaks
+    blockchain[idx].hash = SHA256(blockchain[idx].index + blockchain[idx].timestamp + newData + blockchain[idx].previousHash + blockchain[idx].nonce);
+    renderChain();
+  }
+};
+
+document.getElementById('resetBtn').onclick = function() {
+  blockchain = [createGenesisBlock()];
+  totalHashes = 0;
+  miningTimes = [];
+  renderChain();
+};
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

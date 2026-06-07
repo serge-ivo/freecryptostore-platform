@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Contract Sandbox - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; min-height: 100vh; padding: 20px; }
+a.back { position: fixed; top: 20px; left: 20px; color: #f59e0b; text-decoration: none; font-weight: 600; z-index: 100; }
+a.back:hover { text-decoration: underline; }
+h1 { text-align: center; margin: 40px 0 10px; font-size: 1.8rem; color: #f59e0b; }
+.subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+.container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.panel { background: #141414; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; }
+.panel h2 { font-size: 1rem; color: #f59e0b; margin-bottom: 12px; }
+textarea { width: 100%; height: 200px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #fafafa; font-family: 'Courier New', monospace; font-size: 13px; padding: 12px; resize: vertical; }
+textarea:focus { outline: none; border-color: #f59e0b; }
+.btn { background: #f59e0b; color: #0a0a0a; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-family: inherit; margin: 4px; }
+.btn:hover { background: #d97706; }
+.btn.secondary { background: #333; color: #fafafa; }
+.btn.secondary:hover { background: #444; }
+.controls { margin: 12px 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.state-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 12px; }
+.state-box { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 12px; }
+.state-box h3 { font-size: 0.75rem; color: #888; text-transform: uppercase; margin-bottom: 8px; }
+.state-box .items { font-family: 'Courier New', monospace; font-size: 12px; max-height: 120px; overflow-y: auto; }
+.state-box .items div { padding: 2px 0; border-bottom: 1px solid #222; }
+.gas-bar { margin-top: 12px; background: #1a1a1a; border-radius: 8px; padding: 12px; }
+.gas-bar .bar { height: 8px; background: #333; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+.gas-bar .bar .fill { height: 100%; background: #f59e0b; transition: width 0.3s; }
+.gas-label { display: flex; justify-content: space-between; font-size: 0.8rem; color: #888; }
+.output { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 12px; margin-top: 12px; font-family: 'Courier New', monospace; font-size: 12px; max-height: 150px; overflow-y: auto; }
+.output .line { padding: 2px 0; }
+.output .line.error { color: #ef4444; }
+.output .line.success { color: #22c55e; }
+.output .line.info { color: #60a5fa; }
+.contracts-list { margin-top: 12px; }
+.contract-item { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px; padding: 8px 12px; margin: 4px 0; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; }
+.contract-item .addr { color: #f59e0b; font-family: monospace; }
+.examples { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.examples .btn { font-size: 0.75rem; padding: 4px 10px; }
+.highlight { background: #f59e0b22; border-left: 3px solid #f59e0b; padding: 2px 8px; }
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Smart Contract Sandbox</h1>
+<p class="subtitle">Stack-based VM - Write, deploy, and execute contracts</p>
+
+<div class="container">
+  <div class="panel">
+    <h2>Contract Editor</h2>
+    <div class="examples">
+      <button class="btn secondary" onclick="loadExample('token')">Token Transfer</button>
+      <button class="btn secondary" onclick="loadExample('escrow')">Escrow</button>
+      <button class="btn secondary" onclick="loadExample('voting')">Voting</button>
+    </div>
+    <textarea id="editor" spellcheck="false">; Token Balance Transfer
+; Store initial balances
+PUSH 1000
+PUSH 0x01
+STORE
+
+PUSH 500
+PUSH 0x02
+STORE
+
+; Transfer 200 from 0x01 to 0x02
+PUSH 0x01
+LOAD
+PUSH 200
+SUB
+PUSH 0x01
+STORE
+
+PUSH 0x02
+LOAD
+PUSH 200
+ADD
+PUSH 0x02
+STORE
+
+; Check balance of 0x01
+PUSH 0x01
+LOAD</textarea>
+    <div class="controls">
+      <button class="btn" onclick="deploy()">Deploy</button>
+      <button class="btn" onclick="executeAll()">Run All</button>
+      <button class="btn secondary" onclick="stepExec()">Step</button>
+      <button class="btn secondary" onclick="resetVM()">Reset</button>
+    </div>
+    <div class="gas-bar">
+      <div class="gas-label"><span>Gas Used</span><span id="gasDisplay">0 / 10000</span></div>
+      <div class="bar"><div class="fill" id="gasFill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>VM State</h2>
+    <div class="state-grid">
+      <div class="state-box">
+        <h3>Stack</h3>
+        <div class="items" id="stackView"></div>
+      </div>
+      <div class="state-box">
+        <h3>Memory</h3>
+        <div class="items" id="memoryView"></div>
+      </div>
+      <div class="state-box">
+        <h3>Storage</h3>
+        <div class="items" id="storageView"></div>
+      </div>
+    </div>
+    <div class="contracts-list">
+      <h2 style="margin-top:16px">Deployed Contracts</h2>
+      <div id="contractsList"></div>
+    </div>
+    <div class="output" id="output"></div>
+  </div>
+</div>
+
+<script>
+const GAS_COSTS = { PUSH: 3, ADD: 3, SUB: 3, MUL: 5, DIV: 5, MOD: 5, STORE: 20, LOAD: 5, IF: 10, CALL: 40, DUP: 3, SWAP: 3, POP: 2, EQ: 3, GT: 3, LT: 3, NOT: 3, JUMP: 8, HALT: 0 };
+const GAS_LIMIT = 10000;
+
+let vm = { stack: [], memory: {}, storage: {}, pc: 0, gas: 0, halted: false };
+let instructions = [];
+let contracts = [];
+let contractCounter = 0;
+
+function parseInstructions(code) {
+  return code.split('\n')
+    .map(l => l.replace(/;.*/, '').trim())
+    .filter(l => l.length > 0)
+    .map(l => {
+      const parts = l.split(/\s+/);
+      const op = parts[0].toUpperCase();
+      const arg = parts[1] !== undefined ? parseValue(parts[1]) : null;
+      return { op, arg, raw: l };
+    });
+}
+
+function parseValue(v) {
+  if (v.startsWith('0x')) return parseInt(v, 16);
+  if (!isNaN(v)) return Number(v);
+  return v;
+}
+
+function resetVM() {
+  vm = { stack: [], memory: {}, storage: {}, pc: 0, gas: 0, halted: false };
+  instructions = parseInstructions(document.getElementById('editor').value);
+  updateDisplay();
+  log('VM reset', 'info');
+}
+
+function deploy() {
+  const code = document.getElementById('editor').value;
+  const addr = '0x' + (++contractCounter).toString(16).padStart(4, '0');
+  contracts.push({ addr, code, storage: {} });
+  log(`Contract deployed at ${addr}`, 'success');
+  renderContracts();
+}
+
+function executeAll() {
+  resetVM();
+  while (!vm.halted && vm.pc < instructions.length) {
+    if (!executeStep()) break;
+  }
+  if (vm.pc >= instructions.length) log('Execution complete', 'success');
+}
+
+function stepExec() {
+  if (instructions.length === 0) {
+    instructions = parseInstructions(document.getElementById('editor').value);
+  }
+  if (vm.pc >= instructions.length) { log('End of program', 'info'); return; }
+  executeStep();
+}
+
+function executeStep() {
+  if (vm.pc >= instructions.length) return false;
+  const instr = instructions[vm.pc];
+  const cost = GAS_COSTS[instr.op] || 3;
+  if (vm.gas + cost > GAS_LIMIT) { log('Out of gas!', 'error'); vm.halted = true; return false; }
+  vm.gas += cost;
+
+  try {
+    switch (instr.op) {
+      case 'PUSH': vm.stack.push(instr.arg); break;
+      case 'POP': vm.stack.pop(); break;
+      case 'ADD': { const b = vm.stack.pop(), a = vm.stack.pop(); vm.stack.push(a + b); break; }
+      case 'SUB': { const b = vm.stack.pop(), a = vm.stack.pop(); vm.stack.push(a - b); break; }
+      case 'MUL': { const b = vm.stack.pop(), a = vm.stack.pop(); vm.stack.push(a * b); break; }
+      case 'DIV': { const b = vm.stack.pop(), a = vm.stack.pop(); vm.stack.push(Math.floor(a / b)); break; }
+      case 'MOD': { const b = vm.stack.pop(), a = vm.stack.pop(); vm.stack.push(a % b); break; }
+      case 'STORE': { const addr = vm.stack.pop(), val = vm.stack.pop(); vm.storage[addr] = val; break; }
+      case 'LOAD': { const addr = vm.stack.pop(); vm.stack.push(vm.storage[addr] || 0); break; }
+      case 'DUP': { vm.stack.push(vm.stack[vm.stack.length - 1]); break; }
+      case 'SWAP': { const a = vm.stack.pop(), b = vm.stack.pop(); vm.stack.push(a, b); break; }
+      case 'EQ': { const b = vm.stack.pop(), a = vm.stack.pop(); vm.stack.push(a === b ? 1 : 0); break; }
+      case 'GT': { const b = vm.stack.pop(), a = vm.stack.pop(); vm.stack.push(a > b ? 1 : 0); break; }
+      case 'LT': { const b = vm.stack.pop(), a = vm.stack.pop(); vm.stack.push(a < b ? 1 : 0); break; }
+      case 'NOT': { vm.stack.push(vm.stack.pop() === 0 ? 1 : 0); break; }
+      case 'IF': { const cond = vm.stack.pop(); if (!cond && instr.arg != null) { vm.pc = instr.arg - 1; } break; }
+      case 'JUMP': { if (instr.arg != null) vm.pc = instr.arg - 1; break; }
+      case 'CALL': {
+        const addr = '0x' + vm.stack.pop().toString(16).padStart(4, '0');
+        const contract = contracts.find(c => c.addr === addr);
+        if (!contract) { log(`No contract at ${addr}`, 'error'); break; }
+        const savedPc = vm.pc;
+        const savedInstr = instructions;
+        instructions = parseInstructions(contract.code);
+        vm.pc = 0;
+        while (vm.pc < instructions.length && !vm.halted) { executeStep(); }
+        instructions = savedInstr;
+        vm.pc = savedPc;
+        log(`Called contract ${addr}`, 'info');
+        break;
+      }
+      case 'HALT': vm.halted = true; break;
+      default: log(`Unknown opcode: ${instr.op}`, 'error');
+    }
+  } catch (e) { log(`Error at PC=${vm.pc}: ${e.message}`, 'error'); vm.halted = true; return false; }
+
+  vm.pc++;
+  updateDisplay();
+  return true;
+}
+
+function updateDisplay() {
+  const stackView = document.getElementById('stackView');
+  stackView.innerHTML = vm.stack.map((v, i) => `<div>${i}: ${formatVal(v)}</div>`).reverse().join('');
+
+  const memView = document.getElementById('memoryView');
+  memView.innerHTML = Object.entries(vm.memory).map(([k, v]) => `<div>${k}: ${v}</div>`).join('') || '<div style="color:#555">empty</div>';
+
+  const storageView = document.getElementById('storageView');
+  storageView.innerHTML = Object.entries(vm.storage).map(([k, v]) => `<div>${formatVal(Number(k))}: ${v}</div>`).join('') || '<div style="color:#555">empty</div>';
+
+  const pct = (vm.gas / GAS_LIMIT) * 100;
+  document.getElementById('gasFill').style.width = pct + '%';
+  document.getElementById('gasDisplay').textContent = `${vm.gas} / ${GAS_LIMIT}`;
+}
+
+function formatVal(v) {
+  if (typeof v === 'number' && v > 255) return '0x' + v.toString(16);
+  return String(v);
+}
+
+function log(msg, type = '') {
+  const output = document.getElementById('output');
+  output.innerHTML += `<div class="line ${type}">> ${msg}</div>`;
+  output.scrollTop = output.scrollHeight;
+}
+
+function renderContracts() {
+  const list = document.getElementById('contractsList');
+  list.innerHTML = contracts.map(c => `<div class="contract-item"><span class="addr">${c.addr}</span><button class="btn secondary" style="font-size:0.7rem;padding:2px 8px" onclick="callContract('${c.addr}')">Call</button></div>`).join('');
+}
+
+function callContract(addr) {
+  vm.stack.push(parseInt(addr, 16));
+  const instr = { op: 'CALL', arg: null, raw: `CALL ${addr}` };
+  vm.gas += GAS_COSTS.CALL;
+  const contract = contracts.find(c => c.addr === addr);
+  if (contract) {
+    const saved = instructions;
+    const savedPc = vm.pc;
+    instructions = parseInstructions(contract.code);
+    vm.pc = 0;
+    while (vm.pc < instructions.length && !vm.halted) { executeStep(); }
+    instructions = saved;
+    vm.pc = savedPc;
+    log(`Called ${addr}`, 'success');
+  }
+}
+
+function loadExample(name) {
+  const examples = {
+    token: `; Token Balance Transfer
+; Store initial balances
+PUSH 1000
+PUSH 0x01
+STORE
+
+PUSH 500
+PUSH 0x02
+STORE
+
+; Transfer 200 from 0x01 to 0x02
+PUSH 0x01
+LOAD
+PUSH 200
+SUB
+PUSH 0x01
+STORE
+
+PUSH 0x02
+LOAD
+PUSH 200
+ADD
+PUSH 0x02
+STORE
+
+; Check balance of 0x01
+PUSH 0x01
+LOAD`,
+    escrow: `; Escrow Contract
+; Buyer deposits 500 to escrow (addr 0x10)
+PUSH 500
+PUSH 0x10
+STORE
+
+; Seller balance starts at 0
+PUSH 0
+PUSH 0x20
+STORE
+
+; Condition met (1 = true)
+PUSH 1
+PUSH 0x99
+STORE
+
+; Check condition and release
+PUSH 0x99
+LOAD
+PUSH 1
+EQ
+
+; If condition met, transfer escrow to seller
+PUSH 0x10
+LOAD
+PUSH 0x20
+LOAD
+ADD
+PUSH 0x20
+STORE
+
+; Clear escrow
+PUSH 0
+PUSH 0x10
+STORE`,
+    voting: `; Voting Contract
+; Initialize 3 candidates with 0 votes
+PUSH 0
+PUSH 0x01
+STORE
+
+PUSH 0
+PUSH 0x02
+STORE
+
+PUSH 0
+PUSH 0x03
+STORE
+
+; Vote for candidate 1
+PUSH 0x01
+LOAD
+PUSH 1
+ADD
+PUSH 0x01
+STORE
+
+; Vote for candidate 2
+PUSH 0x02
+LOAD
+PUSH 1
+ADD
+PUSH 0x02
+STORE
+
+; Vote for candidate 1 again
+PUSH 0x01
+LOAD
+PUSH 1
+ADD
+PUSH 0x01
+STORE
+
+; Check results - candidate 1
+PUSH 0x01
+LOAD`
+  };
+  document.getElementById('editor').value = examples[name] || '';
+}
+
+resetVM();
+log('Smart Contract VM ready. Write code and click Run All or Step.', 'info');
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

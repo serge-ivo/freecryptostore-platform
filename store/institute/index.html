@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Institute - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--accent:#f59e0b;--paper:#0a0a0a;--ink:#fafafa;--muted:#737373;--panel:#141414;--line:#1a1a1a}
+body{font-family:'Manrope',system-ui,sans-serif;background:var(--paper);color:var(--ink);line-height:1.6}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+header{border-bottom:1px solid var(--line);padding:.6rem 1.5rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:.5rem;text-decoration:none;color:var(--ink)}
+.brand-emoji{font-size:1.4rem}.brand-name{font-family:'Fraunces',serif;font-size:1.05rem;font-weight:700}
+nav{display:flex;gap:.85rem;font-size:.82rem;font-weight:600;margin-left:auto}
+nav a{color:var(--muted)}nav a:hover{color:var(--ink);text-decoration:none}
+.content{max-width:900px;margin:0 auto;padding:2rem 1.5rem}
+h1{font-family:'Fraunces',serif;font-size:2rem;margin-bottom:.5rem}h1 span{color:var(--accent)}
+.subtitle{color:var(--muted);font-size:.95rem;margin-bottom:2rem}
+h2{font-family:'Fraunces',serif;font-size:1.3rem;color:var(--accent);margin:2rem 0 .8rem;padding-bottom:.4rem;border-bottom:1px solid var(--line)}
+.topic-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.8rem;margin-bottom:2rem}
+.topic{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem;transition:border-color .15s}
+.topic:hover{border-color:var(--accent);text-decoration:none}
+.topic h3{font-size:.9rem;margin-bottom:.3rem;color:var(--ink)}
+.topic p{font-size:.75rem;color:var(--muted);line-height:1.5}
+.resource-list{list-style:none}
+.resource-list li{padding:.6rem 0;border-bottom:1px solid var(--line);display:flex;gap:.8rem;align-items:flex-start}
+.resource-list li:last-child{border:none}
+.resource-list .icon{font-size:1.2rem;flex-shrink:0;margin-top:.1rem}
+.resource-list h4{font-size:.85rem;margin-bottom:.1rem}
+.resource-list p{font-size:.72rem;color:var(--muted)}
+footer{border-top:1px solid var(--line);padding:1.5rem;text-align:center;font-size:.72rem;color:#404040;margin-top:3rem}
+</style>
+</head>
+<body>
+<header>
+<a href="/" class="brand"><span class="brand-emoji">🔗</span><span class="brand-name">FreeCryptoStore</span></a>
+<nav><a href="/">All</a><a href="/institute/">Institute</a><a href="/creators/">Creators</a><a href="/challenges/">Challenges</a><a href="/collections/">Paths</a><a href="/relations/">Relations</a></nav>
+</header>
+<div class="content">
+<h1>Crypto <span>Institute</span></h1>
+<p class="subtitle">Deep-dive educational resources on blockchain, cryptography, and distributed systems</p>
+
+<h2>Core Topics</h2>
+<div class="topic-grid">
+<a href="/institute/cryptography" class="topic"><h3>Cryptographic Foundations</h3><p>Hash functions, digital signatures, elliptic curves, zero-knowledge proofs, and the math that secures the chain.</p></a>
+<a href="/institute/consensus" class="topic"><h3>Consensus Mechanisms</h3><p>Proof of Work, Proof of Stake, PBFT, Raft. How distributed systems agree without trust.</p></a>
+<a href="/institute/smart-contracts" class="topic"><h3>Smart Contracts</h3><p>Virtual machines, state transitions, gas mechanics, common vulnerabilities, formal verification.</p></a>
+<a href="/institute/defi" class="topic"><h3>Decentralized Finance</h3><p>AMMs, liquidity pools, yield farming, lending protocols, oracle problems, MEV.</p></a>
+<a href="/institute/networks" class="topic"><h3>P2P Networks</h3><p>Gossip protocols, block propagation, eclipse attacks, network partitions, and fork resolution.</p></a>
+<a href="/institute/economics" class="topic"><h3>Token Economics</h3><p>Supply curves, bonding curves, inflation models, governance, mechanism design.</p></a>
+</div>
+
+<h2>Foundational Papers</h2>
+<ul class="resource-list">
+<li><div class="icon">📄</div><div><h4><a href="https://bitcoin.org/bitcoin.pdf">Bitcoin: A Peer-to-Peer Electronic Cash System</a></h4><p>Satoshi Nakamoto (2008). The paper that started it all. 9 pages that changed finance.</p></div></li>
+<li><div class="icon">📄</div><div><h4><a href="https://ethereum.org/en/whitepaper/">Ethereum Whitepaper</a></h4><p>Vitalik Buterin (2013). Generalized blockchain with programmable state transitions.</p></div></li>
+<li><div class="icon">📄</div><div><h4><a href="https://lamport.azurewebsites.net/pubs/byz.pdf">The Byzantine Generals Problem</a></h4><p>Lamport, Shostak, Pease (1982). The original consensus problem that blockchain solves.</p></div></li>
+<li><div class="icon">📄</div><div><h4><a href="https://nakamotoinstitute.org/library/hashcash/">Hashcash - A Denial of Service Counter-Measure</a></h4><p>Adam Back (2002). The proof-of-work system that inspired Bitcoin mining.</p></div></li>
+<li><div class="icon">📄</div><div><h4><a href="https://www.wisdom.weizmann.ac.il/~oded/PSX/zk-intro.pdf">Zero Knowledge Proofs - An Introduction</a></h4><p>Oded Goldreich. Accessible introduction to ZKPs for non-specialists.</p></div></li>
+</ul>
+
+<h2>Tools & References</h2>
+<ul class="resource-list">
+<li><div class="icon">🔧</div><div><h4><a href="https://andersbrownworth.com/blockchain/">Blockchain Demo (Anders Brownworth)</a></h4><p>Visual blockchain demo that inspired our Blockchain Builder. Simple, clear, effective.</p></div></li>
+<li><div class="icon">🔧</div><div><h4><a href="https://remix.ethereum.org/">Remix IDE</a></h4><p>Official Solidity IDE. Write, compile, deploy smart contracts to testnets.</p></div></li>
+<li><div class="icon">🔧</div><div><h4><a href="https://etherscan.io/">Etherscan</a></h4><p>Ethereum block explorer. See real transactions, contracts, and tokens.</p></div></li>
+<li><div class="icon">🔧</div><div><h4><a href="https://www.blockchain.com/explorer">Blockchain.com Explorer</a></h4><p>Bitcoin block explorer. Inspect real blocks, transactions, and mempool.</p></div></li>
+</ul>
+
+<h2>Community & Learning</h2>
+<ul class="resource-list">
+<li><div class="icon">🎓</div><div><h4><a href="https://cryptozombies.io/">CryptoZombies</a></h4><p>Learn Solidity by building a zombie game. Great for smart contract beginners.</p></div></li>
+<li><div class="icon">🎓</div><div><h4><a href="https://university.alchemy.com/">Alchemy University</a></h4><p>Free web3 developer bootcamp. From JavaScript to deployed dApps.</p></div></li>
+<li><div class="icon">🎓</div><div><h4><a href="https://www.coursera.org/learn/cryptocurrency">Coursera: Bitcoin and Cryptocurrency Technologies</a></h4><p>Princeton course. Rigorous CS approach to understanding Bitcoin.</p></div></li>
+</ul>
+</div>
+<footer>FreeCryptoStore — free blockchain & cryptography education.</footer>
+</body>
+</html>

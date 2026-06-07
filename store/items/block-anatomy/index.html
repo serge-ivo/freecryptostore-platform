@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Block Anatomy Explorer - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; min-height: 100vh; padding: 20px; }
+a.back { position: fixed; top: 20px; left: 20px; color: #f59e0b; text-decoration: none; font-weight: 600; z-index: 100; }
+a.back:hover { text-decoration: underline; }
+h1 { text-align: center; margin: 40px 0 10px; font-size: 1.8rem; color: #f59e0b; }
+.subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+.tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 30px; }
+.tab { background: #1a1a1a; border: 1px solid #333; color: #aaa; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-family: inherit; font-weight: 500; transition: all 0.2s; }
+.tab:hover { border-color: #f59e0b; color: #f59e0b; }
+.tab.active { background: #f59e0b; color: #0a0a0a; border-color: #f59e0b; }
+.container { max-width: 1000px; margin: 0 auto; }
+.block-diagram { background: #111; border: 1px solid #222; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+.block-header-title { color: #f59e0b; font-size: 1rem; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.field-row { display: flex; align-items: stretch; border: 1px solid #222; border-radius: 8px; margin: 6px 0; overflow: hidden; cursor: pointer; transition: all 0.2s; }
+.field-row:hover { border-color: #f59e0b; }
+.field-row.expanded { border-color: #f59e0b; }
+.field-label { background: #1a1a1a; padding: 12px 16px; min-width: 160px; font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; border-right: 1px solid #222; }
+.field-value { padding: 12px 16px; flex: 1; font-family: monospace; font-size: 0.8rem; color: #aaa; word-break: break-all; display: flex; align-items: center; }
+.field-detail { display: none; padding: 12px 16px; background: #0a0a0a; border-top: 1px solid #222; font-size: 0.83rem; color: #ccc; line-height: 1.6; }
+.field-detail.show { display: block; }
+.field-wrapper { margin: 6px 0; }
+.comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.comparison-col h3 { text-align: center; padding: 10px; background: #1a1a1a; border-radius: 8px 8px 0 0; font-size: 0.9rem; }
+.comparison-col h3.btc { color: #f7931a; }
+.comparison-col h3.eth { color: #627eea; }
+.tx-section { background: #111; border: 1px solid #222; border-radius: 12px; padding: 20px; margin-top: 20px; }
+.tx-section h3 { color: #f59e0b; margin-bottom: 12px; }
+.tx-item { background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 8px; margin: 8px 0; padding: 12px; cursor: pointer; transition: border-color 0.2s; }
+.tx-item:hover { border-color: #333; }
+.tx-item .tx-hash { font-family: monospace; font-size: 0.75rem; color: #f59e0b; margin-bottom: 6px; }
+.tx-item .tx-summary { font-size: 0.8rem; color: #888; }
+.tx-detail { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #1a1a1a; }
+.tx-detail.show { display: block; }
+.io-row { display: flex; gap: 20px; }
+.io-col { flex: 1; }
+.io-col h5 { color: #888; font-size: 0.75rem; margin-bottom: 6px; }
+.io-entry { background: #111; border-radius: 4px; padding: 8px; margin: 4px 0; font-size: 0.75rem; }
+.io-entry .addr { font-family: monospace; color: #aaa; }
+.io-entry .amt { color: #22c55e; font-weight: 600; }
+.hash-assembly { background: #111; border: 1px solid #222; border-radius: 12px; padding: 20px; margin-top: 20px; }
+.hash-assembly h3 { color: #f59e0b; margin-bottom: 12px; }
+.assembly-step { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #1a1a1a; }
+.assembly-step .step-num { background: #f59e0b; color: #0a0a0a; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
+.assembly-step .step-text { font-size: 0.83rem; color: #ccc; }
+.assembly-step code { background: #0a0a0a; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; color: #f59e0b; }
+.section { display: none; }
+.section.active { display: block; }
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Block Anatomy Explorer</h1>
+<p class="subtitle">Explore the internal structure of blockchain blocks</p>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('bitcoin')">Bitcoin Block</button>
+  <button class="tab" onclick="showTab('compare')">BTC vs ETH</button>
+  <button class="tab" onclick="showTab('assembly')">Hash Assembly</button>
+</div>
+
+<div class="container">
+  <!-- Bitcoin Block -->
+  <div class="section active" id="sec-bitcoin">
+    <div class="block-diagram">
+      <div class="block-header-title">Block #0 (Genesis Block) - January 3, 2009</div>
+
+      <div class="field-wrapper" onclick="toggleField(this)">
+        <div class="field-row">
+          <div class="field-label">Version</div>
+          <div class="field-value">1</div>
+        </div>
+        <div class="field-detail">The block version number indicates which set of block validation rules to follow. Version 1 was used from the genesis block. Later versions (2, 3, 4) activated soft forks like BIP34 (height in coinbase), BIP66 (strict DER sigs), and BIP65 (CHECKLOCKTIMEVERIFY).</div>
+      </div>
+
+      <div class="field-wrapper" onclick="toggleField(this)">
+        <div class="field-row">
+          <div class="field-label">Previous Hash</div>
+          <div class="field-value">0000000000000000000000000000000000000000000000000000000000000000</div>
+        </div>
+        <div class="field-detail">A 256-bit hash referencing the previous block. The genesis block has all zeros because there is no preceding block. This field creates the "chain" in blockchain - each block cryptographically commits to the entire history before it. Changing any prior block invalidates all subsequent hashes.</div>
+      </div>
+
+      <div class="field-wrapper" onclick="toggleField(this)">
+        <div class="field-row">
+          <div class="field-label">Merkle Root</div>
+          <div class="field-value">4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b</div>
+        </div>
+        <div class="field-detail">The root of a Merkle tree (binary hash tree) of all transactions in the block. Allows efficient verification that a transaction is included without downloading all transactions (SPV proofs). The genesis block's Merkle root is just the hash of the single coinbase transaction.</div>
+      </div>
+
+      <div class="field-wrapper" onclick="toggleField(this)">
+        <div class="field-row">
+          <div class="field-label">Timestamp</div>
+          <div class="field-value">2009-01-03 18:15:05 UTC (1231006505)</div>
+        </div>
+        <div class="field-detail">Unix timestamp of when the miner started hashing the block header. Nodes reject blocks with timestamps more than 2 hours in the future. The median of the last 11 blocks must be less than the new block's timestamp. This prevents timestamp manipulation for difficulty gaming.</div>
+      </div>
+
+      <div class="field-wrapper" onclick="toggleField(this)">
+        <div class="field-row">
+          <div class="field-label">Difficulty (Bits)</div>
+          <div class="field-value">486604799 (0x1d00ffff)</div>
+        </div>
+        <div class="field-detail">Compact representation of the target threshold. The block hash must be below this target to be valid. Difficulty 1 (the genesis value) means the target is the maximum possible. Adjusts every 2,016 blocks (~2 weeks) to maintain ~10 minute block intervals regardless of total network hash power.</div>
+      </div>
+
+      <div class="field-wrapper" onclick="toggleField(this)">
+        <div class="field-row">
+          <div class="field-label">Nonce</div>
+          <div class="field-value">2083236893</div>
+        </div>
+        <div class="field-detail">A 32-bit number miners increment to find a hash below the target. With modern difficulty, 2^32 nonces are insufficient - miners also vary the coinbase transaction's extra nonce, timestamp, and transaction ordering. The genesis nonce means Satoshi tried ~2 billion combinations before finding a valid hash.</div>
+      </div>
+    </div>
+
+    <div class="tx-section">
+      <h3>Transactions (1)</h3>
+      <div class="tx-item" onclick="toggleTx(this)">
+        <div class="tx-hash">4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b</div>
+        <div class="tx-summary">Coinbase transaction - 50 BTC block reward</div>
+        <div class="tx-detail">
+          <div class="io-row">
+            <div class="io-col">
+              <h5>Inputs (Coinbase)</h5>
+              <div class="io-entry">
+                <div class="addr">No input (newly generated coins)</div>
+                <div style="font-size:0.7rem; color:#888; margin-top:4px;">ScriptSig: "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks"</div>
+              </div>
+            </div>
+            <div class="io-col">
+              <h5>Outputs</h5>
+              <div class="io-entry">
+                <div class="addr">1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa</div>
+                <div class="amt">50.00000000 BTC</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Comparison -->
+  <div class="section" id="sec-compare">
+    <div class="comparison">
+      <div class="comparison-col">
+        <h3 class="btc">Bitcoin Block Header (80 bytes)</h3>
+        <div class="block-diagram" style="margin-top:0; border-radius: 0 0 12px 12px;">
+          <div class="field-wrapper" onclick="toggleField(this)">
+            <div class="field-row"><div class="field-label">Version</div><div class="field-value">4 bytes</div></div>
+            <div class="field-detail">Protocol version for validation rules.</div>
+          </div>
+          <div class="field-wrapper" onclick="toggleField(this)">
+            <div class="field-row"><div class="field-label">Prev Block Hash</div><div class="field-value">32 bytes</div></div>
+            <div class="field-detail">SHA-256d of previous block header.</div>
+          </div>
+          <div class="field-wrapper" onclick="toggleField(this)">
+            <div class="field-row"><div class="field-label">Merkle Root</div><div class="field-value">32 bytes</div></div>
+            <div class="field-detail">Root of transaction Merkle tree (double SHA-256).</div>
+          </div>
+          <div class="field-wrapper" onclick="toggleField(this)">
+            <div class="field-row"><div class="field-label">Timestamp</div><div class="field-value">4 bytes</div></div>
+            <div class="field-detail">Unix time. Must be > median of last 11 blocks.</div>
+          </div>
+          <div class="field-wrapper" onclick="toggleField(this)">
+            <div class="field-row"><div class="field-label">Bits (Target)</div><div class="field-value">4 bytes</div></div>
+            <div class="field-detail">Compact difficulty target. Adjusts every 2016 blocks.</div>
+          </div>
+          <div class="field-wrapper" onclick="toggleField(this)">
+            <div class="field-row"><div class="field-label">Nonce</div><div class="field-value">4 bytes</div></div>
+            <div class="field-detail">Miner-varied field for PoW.</div>
+          </div>
+          <div style="margin-top:12px; font-size:0.8rem; color:#888;">
+            <strong>Model:</strong> UTXO (Unspent Transaction Outputs)<br>
+            <strong>Consensus:</strong> SHA-256 Proof of Work<br>
+            <strong>Block time:</strong> ~10 minutes<br>
+            <strong>Max size:</strong> 1 MB (4 MB weight)
+          </div>
+        </div>
+      </div>
+      <div class="comparison-col">
+        <h3 class="eth">Ethereum Block Header (~500+ bytes)</h3>
+        <div class="block-diagram" style="margin-top:0; border-radius: 0 0 12px 12px;">
+          <div class="field-wrapper" onclick="toggleField(this)">
+            <div class="field-row"><div class="field-label">Parent Hash</div><div class="field-value">32 bytes</div></div>
+            <div class="field-detail">Keccak-256 hash of parent block header.</div>
+          </div>
+          <div class="field-wrapper" onclick="toggleField(this)">
+            <div class="field-row"><div class="field-label">State Root</div><div class="field-value">32 bytes</div></div>
+            <div class="field-detail">Root of the world state trie (all account balances, contract storage). This is unique to account-model chains.</div>
+          </div>
+          <div class="field-wrapper" onclick="toggleField(this)">
+            <div class="field-row"><div class="field-label">Transactions Root</div><div class="field-value">32 bytes</div></div>
+            <div class="field-detail">Root of trie of all transactions in block.</div>
+          </div>
+          <div class="field-wrapper" onclick="toggleField(this)">
+            <div class="field-row"><div class="field-label">Receipts Root</div><div class="field-value">32 bytes</div></div>
+            <div class="field-detail">Root of trie of transaction receipts (logs, gas used, status).</div>
+          </div>
+          <div class="field-wrapper" onclick="toggleField(this)">
+            <div class="field-row"><div class="field-label">Gas Limit / Used</div><div class="field-value">8+8 bytes</div></div>
+            <div class="field-detail">Computational budget for the block. Unlike Bitcoin's byte-size limit, Ethereum limits computation (gas).</div>
+          </div>
+          <div class="field-wrapper" onclick="toggleField(this)">
+            <div class="field-row"><div class="field-label">Base Fee</div><div class="field-value">32 bytes</div></div>
+            <div class="field-detail">EIP-1559 base fee (burned). Adjusts per-block based on utilization.</div>
+          </div>
+          <div style="margin-top:12px; font-size:0.8rem; color:#888;">
+            <strong>Model:</strong> Account-based (balances + state)<br>
+            <strong>Consensus:</strong> Proof of Stake (since The Merge)<br>
+            <strong>Block time:</strong> ~12 seconds<br>
+            <strong>Max size:</strong> ~30M gas limit
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hash Assembly -->
+  <div class="section" id="sec-assembly">
+    <div class="hash-assembly">
+      <h3>How the Block Header Hash is Computed</h3>
+      <p style="color:#888; font-size:0.85rem; margin-bottom:16px;">Bitcoin uses double SHA-256. The 80-byte header is hashed twice to produce the block's identity.</p>
+
+      <div class="assembly-step">
+        <div class="step-num">1</div>
+        <div class="step-text">Serialize header fields in order: <code>version</code> + <code>prev_hash</code> + <code>merkle_root</code> + <code>timestamp</code> + <code>bits</code> + <code>nonce</code></div>
+      </div>
+      <div class="assembly-step">
+        <div class="step-num">2</div>
+        <div class="step-text">Result is exactly 80 bytes in little-endian format</div>
+      </div>
+      <div class="assembly-step">
+        <div class="step-num">3</div>
+        <div class="step-text">Apply SHA-256: <code>hash1 = SHA256(header_bytes)</code></div>
+      </div>
+      <div class="assembly-step">
+        <div class="step-num">4</div>
+        <div class="step-text">Apply SHA-256 again: <code>block_hash = SHA256(hash1)</code></div>
+      </div>
+      <div class="assembly-step">
+        <div class="step-num">5</div>
+        <div class="step-text">Reverse byte order for display (big-endian)</div>
+      </div>
+      <div class="assembly-step">
+        <div class="step-num">6</div>
+        <div class="step-text">Check: is <code>block_hash < target</code>? If yes, block is valid!</div>
+      </div>
+
+      <div style="margin-top:20px; background:#0a0a0a; border-radius:8px; padding:16px;">
+        <div style="font-size:0.8rem; color:#888; margin-bottom:8px;">Genesis Block Hash (result of above process):</div>
+        <div style="font-family:monospace; font-size:0.8rem; color:#f59e0b; word-break:break-all;">000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f</div>
+        <div style="font-size:0.75rem; color:#666; margin-top:8px;">Notice: starts with many zeros. The more leading zeros, the harder it was to find (lower target = higher difficulty).</div>
+      </div>
+    </div>
+
+    <div class="hash-assembly" style="margin-top:20px;">
+      <h3>Try It: Adjust Nonce</h3>
+      <p style="color:#888; font-size:0.85rem; margin-bottom:12px;">Change the nonce and watch the hash change completely (avalanche effect).</p>
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <label style="color:#888; font-size:0.85rem;">Nonce:</label>
+        <input type="number" id="nonceInput" value="0" style="background:#0a0a0a; border:1px solid #333; color:#fafafa; padding:8px 12px; border-radius:6px; font-family:monospace; width:150px;">
+        <button onclick="computeHash()">Hash</button>
+      </div>
+      <div style="margin-top:12px;">
+        <div style="font-size:0.8rem; color:#888;">Input (simplified): "block_data_" + nonce</div>
+        <div id="hashResult" style="font-family:monospace; font-size:0.8rem; color:#f59e0b; margin-top:8px; word-break:break-all; background:#0a0a0a; padding:10px; border-radius:6px;">Click "Hash" to compute</div>
+        <div id="hashLeading" style="font-size:0.8rem; color:#888; margin-top:6px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function toggleField(wrapper) {
+  const detail = wrapper.querySelector('.field-detail');
+  const row = wrapper.querySelector('.field-row');
+  const isOpen = detail.classList.contains('show');
+  document.querySelectorAll('.field-detail').forEach(d => d.classList.remove('show'));
+  document.querySelectorAll('.field-row').forEach(r => r.classList.remove('expanded'));
+  if (!isOpen) { detail.classList.add('show'); row.classList.add('expanded'); }
+}
+
+function toggleTx(el) {
+  const detail = el.querySelector('.tx-detail');
+  detail.classList.toggle('show');
+}
+
+async function computeHash() {
+  const nonce = document.getElementById('nonceInput').value;
+  const input = 'block_data_' + nonce;
+  const data = new TextEncoder().encode(input);
+  const hash1 = await crypto.subtle.digest('SHA-256', data);
+  const hash2 = await crypto.subtle.digest('SHA-256', hash1);
+  const hex = Array.from(new Uint8Array(hash2)).map(b => b.toString(16).padStart(2, '0')).join('');
+  document.getElementById('hashResult').textContent = hex;
+  const leading = hex.match(/^0*/)[0].length;
+  document.getElementById('hashLeading').textContent = `Leading zeros: ${leading} (need ${leading >= 4 ? 'enough! Valid block!' : 'more for higher difficulty'})`;
+  document.getElementById('hashLeading').style.color = leading >= 4 ? '#22c55e' : '#888';
+}
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

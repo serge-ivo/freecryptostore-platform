@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cryptocurrency Timeline - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; min-height: 100vh; padding: 20px; }
+a.back { position: fixed; top: 20px; left: 20px; color: #f59e0b; text-decoration: none; font-weight: 600; z-index: 100; }
+a.back:hover { text-decoration: underline; }
+h1 { text-align: center; margin: 40px 0 10px; font-size: 1.8rem; color: #f59e0b; }
+.subtitle { text-align: center; color: #888; margin-bottom: 20px; }
+.legend { display: flex; gap: 16px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap; }
+.legend span { font-size: 0.8rem; display: flex; align-items: center; gap: 6px; }
+.legend .dot { width: 10px; height: 10px; border-radius: 50%; }
+.timeline-container { max-width: 900px; margin: 0 auto; position: relative; padding-left: 60px; }
+.timeline-line { position: absolute; left: 78px; top: 0; bottom: 0; width: 3px; background: linear-gradient(to bottom, #f59e0b, #6366f1, #22c55e); border-radius: 2px; }
+.event-node { position: relative; margin: 24px 0; padding-left: 40px; cursor: pointer; }
+.event-dot { position: absolute; left: -8px; top: 8px; width: 18px; height: 18px; border-radius: 50%; border: 3px solid #0a0a0a; z-index: 2; transition: transform 0.2s; }
+.event-node:hover .event-dot { transform: scale(1.3); }
+.event-dot.crypto { background: #6366f1; }
+.event-dot.economic { background: #22c55e; }
+.event-dot.social { background: #f59e0b; }
+.event-year { position: absolute; left: -58px; top: 6px; font-size: 0.8rem; font-weight: 600; color: #666; width: 40px; text-align: right; }
+.event-card { background: #111; border: 1px solid #222; border-radius: 10px; padding: 16px; transition: all 0.2s; }
+.event-card:hover { border-color: #333; }
+.event-card.active { border-color: #f59e0b; }
+.event-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; }
+.event-type { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px; }
+.type-crypto { background: #1e1b4b; color: #a5b4fc; }
+.type-economic { background: #052e16; color: #86efac; }
+.type-social { background: #1a1500; color: #fcd34d; }
+.event-desc { display: none; color: #aaa; font-size: 0.85rem; line-height: 1.6; margin-top: 10px; padding-top: 10px; border-top: 1px solid #222; }
+.event-desc.show { display: block; }
+.event-mini { display: none; margin-top: 12px; background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 14px; }
+.event-mini.show { display: block; }
+.event-mini h4 { color: #f59e0b; font-size: 0.8rem; margin-bottom: 8px; }
+.mini-demo { font-family: monospace; font-size: 0.75rem; color: #aaa; }
+.mini-demo input { background: #111; border: 1px solid #333; color: #fafafa; padding: 6px 10px; border-radius: 4px; font-family: monospace; font-size: 0.75rem; width: 100%; margin: 6px 0; }
+.mini-demo button { font-size: 0.7rem; padding: 5px 10px; margin-top: 4px; }
+.mini-demo .output { color: #f59e0b; margin-top: 6px; word-break: break-all; }
+.builds-on { font-size: 0.75rem; color: #666; margin-top: 8px; }
+.builds-on span { color: #888; background: #1a1a1a; padding: 2px 6px; border-radius: 4px; margin-left: 4px; }
+button { background: #1a1a1a; border: 1px solid #333; color: #fafafa; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 500; transition: all 0.2s; }
+button:hover { border-color: #f59e0b; color: #f59e0b; }
+.filter-bar { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
+.filter-btn { font-size: 0.8rem; padding: 6px 14px; }
+.filter-btn.active { background: #f59e0b; color: #0a0a0a; border-color: #f59e0b; }
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Cryptocurrency Timeline</h1>
+<p class="subtitle">From public-key cryptography to DeFi and beyond</p>
+
+<div class="legend">
+  <span><span class="dot" style="background:#6366f1"></span> Cryptographic Innovation</span>
+  <span><span class="dot" style="background:#22c55e"></span> Economic Innovation</span>
+  <span><span class="dot" style="background:#f59e0b"></span> Social / Cultural Milestone</span>
+</div>
+
+<div class="filter-bar">
+  <button class="filter-btn active" onclick="filterEvents('all', this)">All</button>
+  <button class="filter-btn" onclick="filterEvents('crypto', this)">Cryptographic</button>
+  <button class="filter-btn" onclick="filterEvents('economic', this)">Economic</button>
+  <button class="filter-btn" onclick="filterEvents('social', this)">Social</button>
+</div>
+
+<div class="timeline-container">
+  <div class="timeline-line"></div>
+  <div id="timelineEvents"></div>
+</div>
+
+<script>
+const events = [
+  { year: 1976, title: 'Diffie-Hellman Key Exchange', type: 'crypto', buildsOn: [],
+    desc: 'Whitfield Diffie and Martin Hellman publish "New Directions in Cryptography," introducing the concept of public-key cryptography. Two parties can establish a shared secret over an insecure channel without prior shared secrets. This paper is the theoretical foundation for all cryptocurrency.',
+    mini: { type: 'dh', label: 'Simplified Key Exchange', hint: 'Watch two parties agree on a shared secret using public values.' }},
+  { year: 1977, title: 'RSA Algorithm Published', type: 'crypto', buildsOn: ['Diffie-Hellman'],
+    desc: 'Ron Rivest, Adi Shamir, and Leonard Adleman create the first practical public-key cryptosystem. RSA enables digital signatures - proving authorship without revealing private keys. This becomes the basis for transaction signing in all cryptocurrencies.',
+    mini: null },
+  { year: 1991, title: 'Linked Timestamping (Haber & Stornetta)', type: 'crypto', buildsOn: ['RSA'],
+    desc: 'Stuart Haber and W. Scott Stornetta propose a cryptographically secured chain of timestamps to prevent backdating documents. Their linked-list-of-hashes structure is directly cited in the Bitcoin whitepaper as prior art. This is arguably the first "blockchain" concept.',
+    mini: null },
+  { year: 1997, title: 'HashCash (Adam Back)', type: 'crypto', buildsOn: ['Linked Timestamping'],
+    desc: 'Adam Back invents HashCash as an anti-spam system: to send an email, compute a partial hash collision (find input whose SHA-1 hash starts with N zeros). This proof-of-work concept becomes Bitcoin\'s mining mechanism. Each "stamp" costs CPU time but is trivial to verify.',
+    mini: { type: 'hashcash', label: 'HashCash PoW Demo', hint: 'Find a nonce that produces a hash starting with zeros.' }},
+  { year: 1998, title: 'B-money (Wei Dai)', type: 'economic', buildsOn: ['HashCash'],
+    desc: 'Wei Dai proposes b-money: a decentralized digital currency where money creation requires proof of computational work. The protocol describes broadcasting transactions to all participants and reaching agreement without a central authority. Many concepts map directly to Bitcoin.',
+    mini: null },
+  { year: 1998, title: 'Bit Gold (Nick Szabo)', type: 'economic', buildsOn: ['HashCash', 'B-money'],
+    desc: 'Nick Szabo designs Bit Gold: a decentralized digital currency using proof-of-work chains. Unlike b-money, it explicitly chains PoW solutions together (each solution depends on the previous). Never implemented, but the closest precursor to Bitcoin\'s architecture.',
+    mini: null },
+  { year: 2004, title: 'RPOW - Reusable Proof of Work (Hal Finney)', type: 'crypto', buildsOn: ['HashCash', 'Bit Gold'],
+    desc: 'Hal Finney builds the first reusable proof-of-work system. Unlike HashCash tokens (single-use), RPOW tokens can be transferred between users. Uses trusted computing hardware to prevent double-spending. Finney later receives the first Bitcoin transaction from Satoshi.',
+    mini: null },
+  { year: 2008, title: 'Bitcoin Whitepaper (Satoshi Nakamoto)', type: 'economic', buildsOn: ['HashCash', 'B-money', 'RPOW', 'Linked Timestamping'],
+    desc: 'On October 31, Satoshi Nakamoto publishes "Bitcoin: A Peer-to-Peer Electronic Cash System" to the cryptography mailing list. The 9-page paper combines proof-of-work, Merkle trees, and economic incentives into the first fully decentralized digital currency. It solves the double-spending problem without trusted third parties.',
+    mini: null },
+  { year: 2009, title: 'Bitcoin Genesis Block', type: 'social', buildsOn: ['Bitcoin Whitepaper'],
+    desc: 'On January 3, Satoshi mines Block #0 with the message: "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks." This timestamp proves the block was not pre-mined before this date and makes a political statement about the motivation for Bitcoin.',
+    mini: null },
+  { year: 2010, title: 'Bitcoin Pizza Day (10,000 BTC)', type: 'social', buildsOn: ['Bitcoin Genesis Block'],
+    desc: 'Laszlo Hanyecz pays 10,000 BTC for two Papa John\'s pizzas - the first known real-world Bitcoin transaction. At the time worth ~$41, those coins would later be worth hundreds of millions. This event marks Bitcoin\'s transition from experiment to actual medium of exchange.',
+    mini: null },
+  { year: 2011, title: 'Litecoin & Altcoin Era Begins', type: 'economic', buildsOn: ['Bitcoin Genesis Block'],
+    desc: 'Charlie Lee forks Bitcoin to create Litecoin with faster blocks (2.5 min) and Scrypt mining (memory-hard, resisting ASICs initially). This opens the floodgates for alternative cryptocurrencies. Namecoin (DNS), Peercoin (PoS), and dozens more follow in 2011-2013.',
+    mini: null },
+  { year: 2013, title: 'Ethereum Whitepaper (Vitalik Buterin)', type: 'crypto', buildsOn: ['Bitcoin Whitepaper'],
+    desc: 'At age 19, Vitalik Buterin publishes the Ethereum whitepaper proposing a Turing-complete blockchain. Rather than just transferring value, Ethereum allows arbitrary programs (smart contracts) to run on-chain. This enables DeFi, NFTs, DAOs, and programmable money.',
+    mini: null },
+  { year: 2015, title: 'Ethereum Mainnet Launch', type: 'social', buildsOn: ['Ethereum Whitepaper'],
+    desc: 'Ethereum goes live on July 30 with the "Frontier" release. Developers can now deploy smart contracts to a global computer. The EVM (Ethereum Virtual Machine) becomes the standard execution environment that most other chains emulate or are compatible with.',
+    mini: null },
+  { year: 2016, title: 'The DAO Hack & Hard Fork', type: 'social', buildsOn: ['Ethereum Mainnet Launch'],
+    desc: 'A vulnerability in The DAO smart contract is exploited for $60M in ETH. The community controversially hard-forks to reverse the theft, splitting into Ethereum (ETH, restored funds) and Ethereum Classic (ETC, immutability purists). This defines the governance philosophy debate in crypto.',
+    mini: null },
+  { year: 2017, title: 'ICO Boom & CryptoKitties', type: 'social', buildsOn: ['Ethereum Mainnet Launch'],
+    desc: 'Initial Coin Offerings raise billions as ERC-20 tokens enable anyone to launch a "coin." CryptoKitties (first mainstream NFTs) congests the Ethereum network. Bitcoin hits $20K. This bull market brings crypto to mainstream consciousness but also massive speculation and scams.',
+    mini: null },
+  { year: 2018, title: 'Lightning Network (Bitcoin Layer 2)', type: 'crypto', buildsOn: ['Bitcoin Whitepaper'],
+    desc: 'The Lightning Network launches on Bitcoin mainnet, enabling instant micropayments through payment channels. Two parties lock BTC on-chain, then transact off-chain at any speed, only settling the final balance. This proves Layer 2 scaling is viable without changing the base protocol.',
+    mini: null },
+  { year: 2020, title: 'DeFi Summer', type: 'economic', buildsOn: ['Ethereum Mainnet Launch'],
+    desc: 'Compound introduces liquidity mining (COMP governance token rewards). Total Value Locked in DeFi explodes from $1B to $15B in months. Uniswap, Aave, Yearn, and Curve create an entire financial system: lending, borrowing, trading, and yield farming - all without intermediaries.',
+    mini: null },
+  { year: 2021, title: 'NFT Explosion & Mainstream Adoption', type: 'social', buildsOn: ['DeFi Summer'],
+    desc: 'Beeple sells an NFT for $69M at Christie\'s. NBA Top Shot, Bored Ape Yacht Club, and Art Blocks bring millions of non-crypto users on-chain. El Salvador adopts Bitcoin as legal tender. Total crypto market cap exceeds $3 trillion.',
+    mini: null },
+  { year: 2022, title: 'Ethereum Merge (PoW to PoS)', type: 'crypto', buildsOn: ['Ethereum Mainnet Launch'],
+    desc: 'On September 15, Ethereum transitions from Proof of Work to Proof of Stake - the largest infrastructure change in crypto history. Energy consumption drops 99.95%. Validators stake 32 ETH instead of running GPUs. This proves PoS can secure hundreds of billions in value.',
+    mini: null },
+  { year: 2023, title: 'ZK-Rollups Go Live', type: 'crypto', buildsOn: ['Ethereum Merge'],
+    desc: 'zkSync Era and StarkNet launch on mainnet, bringing zero-knowledge proofs to Ethereum scaling. Thousands of transactions are compressed into a single proof verified on L1. This achieves Ethereum-level security with 100x throughput and 100x lower costs.',
+    mini: null },
+  { year: 2024, title: 'Bitcoin ETF Approval', type: 'economic', buildsOn: ['Bitcoin Genesis Block'],
+    desc: 'The SEC approves spot Bitcoin ETFs in January 2024. BlackRock, Fidelity, and others launch funds that hold actual BTC. Billions flow in within weeks. This bridges traditional finance and crypto, giving institutions regulated exposure without custodial complexity.',
+    mini: null }
+];
+
+function renderTimeline(filter = 'all') {
+  const container = document.getElementById('timelineEvents');
+  container.innerHTML = events
+    .filter(e => filter === 'all' || e.type === filter)
+    .map((e, i) => `
+    <div class="event-node" data-type="${e.type}" onclick="toggleEvent(this)">
+      <span class="event-year">${e.year}</span>
+      <div class="event-dot ${e.type}"></div>
+      <div class="event-card">
+        <div class="event-title">${e.title}</div>
+        <span class="event-type type-${e.type}">${e.type === 'crypto' ? 'Cryptographic' : e.type === 'economic' ? 'Economic' : 'Social'}</span>
+        <div class="event-desc">${e.desc}</div>
+        ${e.buildsOn.length ? `<div class="builds-on">Builds on:${e.buildsOn.map(b => `<span>${b}</span>`).join('')}</div>` : ''}
+        ${e.mini ? `<div class="event-mini"><h4>${e.mini.label}</h4><div class="mini-demo" id="mini-${i}">${getMiniHTML(e.mini, i)}</div></div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function getMiniHTML(mini, idx) {
+  if (mini.type === 'hashcash') {
+    return `
+      <p style="color:#888; margin-bottom:8px;">${mini.hint}</p>
+      <div>Target: hash must start with <strong style="color:#f59e0b">0000</strong></div>
+      <input id="hc-input-${idx}" placeholder="Enter any text as email header..." value="hello@world.com">
+      <button onclick="mineHashcash(${idx}); event.stopPropagation();">Mine (find nonce)</button>
+      <div class="output" id="hc-output-${idx}"></div>
+    `;
+  }
+  if (mini.type === 'dh') {
+    return `
+      <p style="color:#888; margin-bottom:8px;">${mini.hint}</p>
+      <div>Public base: g=5, modulus: p=23</div>
+      <div style="margin:8px 0;">Alice secret: <strong style="color:#6366f1">a=6</strong> -> sends g^a mod p = <strong>8</strong></div>
+      <div>Bob secret: <strong style="color:#22c55e">b=15</strong> -> sends g^b mod p = <strong>19</strong></div>
+      <div style="margin-top:8px; color:#f59e0b;">Shared secret: 19^6 mod 23 = 8^15 mod 23 = <strong>2</strong></div>
+      <div style="color:#666; margin-top:4px;">Both arrive at the same number without ever transmitting it!</div>
+    `;
+  }
+  return '';
+}
+
+async function mineHashcash(idx) {
+  const input = document.getElementById(`hc-input-${idx}`).value;
+  const output = document.getElementById(`hc-output-${idx}`);
+  output.textContent = 'Mining...';
+  let nonce = 0;
+  const target = '0000';
+
+  async function sha(msg) {
+    const data = new TextEncoder().encode(msg);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function mine() {
+    for (let i = 0; i < 1000; i++) {
+      const hash = await sha(input + ':' + nonce);
+      if (hash.startsWith(target)) {
+        output.innerHTML = `Found! Nonce: <strong>${nonce}</strong><br>Hash: ${hash}<br><span style="color:#22c55e">Starts with "${target}" - valid proof of work!</span><br><span style="color:#666">Took ${nonce} attempts</span>`;
+        return;
+      }
+      nonce++;
+    }
+    output.textContent = `Mining... tried ${nonce} nonces so far`;
+    requestAnimationFrame(mine);
+  }
+  mine();
+}
+
+function toggleEvent(node) {
+  const desc = node.querySelector('.event-desc');
+  const mini = node.querySelector('.event-mini');
+  const card = node.querySelector('.event-card');
+  const wasActive = card.classList.contains('active');
+
+  document.querySelectorAll('.event-desc').forEach(d => d.classList.remove('show'));
+  document.querySelectorAll('.event-mini').forEach(m => m.classList.remove('show'));
+  document.querySelectorAll('.event-card').forEach(c => c.classList.remove('active'));
+
+  if (!wasActive) {
+    desc.classList.add('show');
+    if (mini) mini.classList.add('show');
+    card.classList.add('active');
+  }
+}
+
+function filterEvents(type, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTimeline(type);
+}
+
+renderTimeline();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

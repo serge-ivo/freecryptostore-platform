@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Merkle Tree Builder - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;padding:20px;min-height:100vh}
+a.back{position:fixed;top:20px;left:20px;color:#f59e0b;text-decoration:none;font-weight:600;z-index:100}
+a.back:hover{text-decoration:underline}
+h1{text-align:center;margin:40px 0 10px;font-size:2rem;color:#f59e0b}
+.subtitle{text-align:center;color:#888;margin-bottom:30px}
+.container{max-width:1100px;margin:0 auto}
+.controls{background:#141414;border:1px solid #222;border-radius:12px;padding:24px;margin-bottom:20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.controls input{flex:1;min-width:200px;background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:10px 14px;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;font-size:0.9rem;outline:none}
+.controls input:focus{border-color:#f59e0b}
+.controls button{background:#f59e0b;color:#0a0a0a;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600;font-family:'Manrope',system-ui,sans-serif;white-space:nowrap}
+.controls button:hover{background:#d97706}
+.controls button.secondary{background:#333;color:#fafafa}
+.controls button.secondary:hover{background:#444}
+.tree-container{background:#141414;border:1px solid #222;border-radius:12px;padding:24px;margin-bottom:20px;overflow-x:auto;min-height:300px}
+.tree-svg{width:100%;min-height:280px}
+.info-panel{background:#141414;border:1px solid #222;border-radius:12px;padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.info-box h3{color:#f59e0b;font-size:0.9rem;margin-bottom:8px}
+.info-box p{color:#aaa;font-size:0.85rem;line-height:1.5}
+.info-box .stat{font-size:1.4rem;color:#fafafa;font-weight:700}
+.node-info{background:#1a1a1a;border-radius:8px;padding:12px;margin-top:8px;font-family:monospace;font-size:0.75rem;word-break:break-all;color:#888}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#888}
+.legend-dot{width:12px;height:12px;border-radius:50%}
+@media(max-width:600px){.info-panel{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<div class="container">
+<h1>Merkle Tree Builder</h1>
+<p class="subtitle">Build a hash tree and explore proof verification</p>
+
+<div class="controls">
+<input type="text" id="leafInput" placeholder="Enter transaction data (e.g. 'Alice pays Bob 5 BTC')" onkeypress="if(event.key==='Enter')addLeaf()">
+<button onclick="addLeaf()">Add Leaf</button>
+<button class="secondary" onclick="addSample()">Add Samples</button>
+<button class="secondary" onclick="resetTree()">Reset</button>
+</div>
+
+<div class="tree-container">
+<svg id="treeSvg" class="tree-svg"></svg>
+</div>
+
+<div class="info-panel">
+<div class="info-box">
+<h3>Tree Statistics</h3>
+<p>Leaves: <span class="stat" id="leafCount">0</span></p>
+<p>Tree height: <span class="stat" id="treeHeight">0</span></p>
+<p>Proof size: <span class="stat" id="proofSize">0</span> hashes (O(log n))</p>
+<p>vs full data: <span class="stat" id="fullSize">0</span> items (O(n))</p>
+<div class="node-info" id="selectedInfo">Click a node to see its hash</div>
+</div>
+<div class="info-box">
+<h3>Merkle Root</h3>
+<div class="node-info" id="rootHash">No data yet</div>
+<h3 style="margin-top:16px">Instructions</h3>
+<p>1. Add leaves (transaction data)<br>2. Click a leaf to highlight its proof path<br>3. Double-click a leaf to tamper with it</p>
+<div class="legend">
+<div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Proof path</div>
+<div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>Verified</div>
+<div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Tampered</div>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+const SHA256=(function(){const K=new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);function rotr(n,x){return(x>>>n)|(x<<(32-n))}return function(msg){const bytes=new TextEncoder().encode(msg);const len=bytes.length;const bl=((len+9+63)&~63);const buf=new Uint8Array(bl);buf.set(bytes);buf[len]=0x80;const dv=new DataView(buf.buffer);dv.setUint32(bl-4,len*8,false);let h0=0x6a09e667,h1=0xbb67ae85,h2=0x3c6ef372,h3=0xa54ff53a,h4=0x510e527f,h5=0x9b05688c,h6=0x1f83d9ab,h7=0x5be0cd19;const w=new Uint32Array(64);for(let i=0;i<bl;i+=64){for(let j=0;j<16;j++)w[j]=dv.getUint32(i+j*4,false);for(let j=16;j<64;j++){const s0=rotr(7,w[j-15])^rotr(18,w[j-15])^(w[j-15]>>>3);const s1=rotr(17,w[j-2])^rotr(19,w[j-2])^(w[j-2]>>>10);w[j]=(w[j-16]+s0+w[j-7]+s1)|0}let a=h0,b=h1,c=h2,d=h3,e=h4,f=h5,g=h6,h=h7;for(let j=0;j<64;j++){const S1=rotr(6,e)^rotr(11,e)^rotr(25,e);const ch=(e&f)^(~e&g);const t1=(h+S1+ch+K[j]+w[j])|0;const S0=rotr(2,a)^rotr(13,a)^rotr(22,a);const maj=(a&b)^(a&c)^(b&c);const t2=(S0+maj)|0;h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0}h0=(h0+a)|0;h1=(h1+b)|0;h2=(h2+c)|0;h3=(h3+d)|0;h4=(h4+e)|0;h5=(h5+f)|0;h6=(h6+g)|0;h7=(h7+h)|0}return[h0,h1,h2,h3,h4,h5,h6,h7].map(v=>(v>>>0).toString(16).padStart(8,'0')).join('')}})();
+
+let leaves = [];
+let tree = [];
+let selectedLeaf = -1;
+let tamperedLeaves = new Set();
+
+function addLeaf() {
+  const input = document.getElementById('leafInput');
+  const val = input.value.trim();
+  if (!val) return;
+  leaves.push(val);
+  input.value = '';
+  buildTree();
+}
+
+function addSample() {
+  const samples = ['Alice->Bob: 5 BTC', 'Bob->Charlie: 2 BTC', 'Charlie->Dave: 1 BTC', 'Dave->Eve: 3 BTC'];
+  samples.forEach(s => leaves.push(s));
+  buildTree();
+}
+
+function resetTree() {
+  leaves = [];
+  tree = [];
+  selectedLeaf = -1;
+  tamperedLeaves.clear();
+  buildTree();
+}
+
+function buildTree() {
+  if (leaves.length === 0) {
+    tree = [];
+    renderTree();
+    updateStats();
+    return;
+  }
+
+  // Hash leaves
+  let level = leaves.map((l, i) => ({
+    hash: SHA256(l),
+    data: l,
+    index: i,
+    isLeaf: true,
+    tampered: tamperedLeaves.has(i)
+  }));
+
+  tree = [level];
+
+  // Build levels up
+  while (level.length > 1) {
+    const nextLevel = [];
+    for (let i = 0; i < level.length; i += 2) {
+      if (i + 1 < level.length) {
+        const combined = level[i].hash + level[i + 1].hash;
+        const tampered = level[i].tampered || level[i + 1].tampered;
+        nextLevel.push({ hash: SHA256(combined), left: i, right: i + 1, tampered });
+      } else {
+        nextLevel.push({ hash: level[i].hash, left: i, right: null, tampered: level[i].tampered });
+      }
+    }
+    tree.push(nextLevel);
+    level = nextLevel;
+  }
+
+  renderTree();
+  updateStats();
+}
+
+function getProofPath(leafIdx) {
+  if (tree.length === 0) return [];
+  let path = [];
+  let idx = leafIdx;
+  for (let lvl = 0; lvl < tree.length - 1; lvl++) {
+    path.push({ level: lvl, index: idx });
+    // sibling
+    const sibIdx = idx % 2 === 0 ? idx + 1 : idx - 1;
+    if (sibIdx >= 0 && sibIdx < tree[lvl].length) {
+      path.push({ level: lvl, index: sibIdx, isSibling: true });
+    }
+    idx = Math.floor(idx / 2);
+  }
+  path.push({ level: tree.length - 1, index: 0 }); // root
+  return path;
+}
+
+function renderTree() {
+  const svg = document.getElementById('treeSvg');
+  const proof = selectedLeaf >= 0 ? getProofPath(selectedLeaf) : [];
+  const proofSet = new Set(proof.map(p => `${p.level}-${p.index}`));
+
+  if (tree.length === 0) {
+    svg.innerHTML = '<text x="50%" y="50%" fill="#555" text-anchor="middle" font-family="Manrope, system-ui" font-size="14">Add leaves to build the tree</text>';
+    document.getElementById('rootHash').textContent = 'No data yet';
+    return;
+  }
+
+  const height = tree.length;
+  const maxWidth = tree[0].length;
+  const svgW = Math.max(800, maxWidth * 120);
+  const svgH = height * 80 + 40;
+  svg.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
+  svg.style.minHeight = svgH + 'px';
+
+  let html = '';
+
+  // Draw edges first
+  for (let lvl = 0; lvl < tree.length - 1; lvl++) {
+    const y1 = svgH - (lvl * 80 + 50);
+    const y2 = svgH - ((lvl + 1) * 80 + 50);
+    const nodesInLevel = tree[lvl].length;
+    const nodesInNext = tree[lvl + 1].length;
+    const spacingCur = svgW / (nodesInLevel + 1);
+    const spacingNext = svgW / (nodesInNext + 1);
+
+    for (let i = 0; i < nodesInNext; i++) {
+      const node = tree[lvl + 1][i];
+      const x2 = spacingNext * (i + 1);
+      if (node.left !== undefined && node.left !== null) {
+        const x1 = spacingCur * (node.left + 1);
+        const inProof = proofSet.has(`${lvl}-${node.left}`) && proofSet.has(`${lvl+1}-${i}`);
+        html += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${inProof ? '#f59e0b' : '#333'}" stroke-width="${inProof ? 2 : 1}"/>`;
+      }
+      if (node.right !== undefined && node.right !== null) {
+        const x1 = spacingCur * (node.right + 1);
+        const inProof = proofSet.has(`${lvl}-${node.right}`) && proofSet.has(`${lvl+1}-${i}`);
+        html += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${inProof ? '#f59e0b' : '#333'}" stroke-width="${inProof ? 2 : 1}"/>`;
+      }
+    }
+  }
+
+  // Draw nodes
+  for (let lvl = 0; lvl < tree.length; lvl++) {
+    const nodesInLevel = tree[lvl].length;
+    const spacing = svgW / (nodesInLevel + 1);
+    const y = svgH - (lvl * 80 + 50);
+
+    for (let i = 0; i < nodesInLevel; i++) {
+      const x = spacing * (i + 1);
+      const node = tree[lvl][i];
+      const inProof = proofSet.has(`${lvl}-${i}`);
+      const isSibling = proof.find(p => p.level === lvl && p.index === i && p.isSibling);
+
+      let fill = '#222';
+      let stroke = '#444';
+      if (node.tampered) { fill = '#3b1111'; stroke = '#ef4444'; }
+      else if (inProof && !isSibling) { fill = '#2a1f00'; stroke = '#f59e0b'; }
+      else if (isSibling) { fill = '#0a2a0a'; stroke = '#22c55e'; }
+
+      const r = lvl === tree.length - 1 ? 24 : 18;
+      html += `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="2" style="cursor:pointer"
+        onclick="selectNode(${lvl},${i})" ondblclick="tamperNode(${lvl},${i})"/>`;
+      html += `<text x="${x}" y="${y + 4}" fill="#fafafa" text-anchor="middle" font-size="9" font-family="monospace">${node.hash.slice(0, 6)}</text>`;
+
+      if (node.isLeaf) {
+        html += `<text x="${x}" y="${y + 30}" fill="#888" text-anchor="middle" font-size="10" font-family="Manrope,system-ui">${node.data.length > 12 ? node.data.slice(0, 12) + '..' : node.data}</text>`;
+      }
+    }
+  }
+
+  svg.innerHTML = html;
+
+  // Update root hash
+  const root = tree[tree.length - 1][0];
+  document.getElementById('rootHash').textContent = root.hash;
+}
+
+function selectNode(lvl, idx) {
+  if (lvl === 0) {
+    selectedLeaf = selectedLeaf === idx ? -1 : idx;
+  }
+  const node = tree[lvl][idx];
+  document.getElementById('selectedInfo').textContent = `Level ${lvl}, Index ${idx}\nHash: ${node.hash}${node.data ? '\nData: ' + node.data : ''}`;
+  renderTree();
+}
+
+function tamperNode(lvl, idx) {
+  if (lvl !== 0) return;
+  if (tamperedLeaves.has(idx)) {
+    tamperedLeaves.delete(idx);
+    leaves[idx] = leaves[idx].replace(' [TAMPERED]', '');
+  } else {
+    tamperedLeaves.add(idx);
+    leaves[idx] += ' [TAMPERED]';
+  }
+  buildTree();
+}
+
+function updateStats() {
+  document.getElementById('leafCount').textContent = leaves.length;
+  document.getElementById('treeHeight').textContent = tree.length;
+  const proofLen = tree.length > 0 ? tree.length - 1 : 0;
+  document.getElementById('proofSize').textContent = proofLen;
+  document.getElementById('fullSize').textContent = leaves.length;
+}
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

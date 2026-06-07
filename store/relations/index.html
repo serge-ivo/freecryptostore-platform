@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Relations - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fafafa;font-family:Manrope,system-ui,sans-serif;overflow:hidden}
+header{border-bottom:1px solid #1a1a1a;padding:.6rem 1.5rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;position:fixed;top:0;left:0;right:0;z-index:10;background:#0a0a0a}
+.brand{display:flex;align-items:center;gap:.5rem;text-decoration:none;color:#fafafa}
+.brand-emoji{font-size:1.4rem}.brand-name{font-family:'Fraunces',serif;font-size:1.05rem;font-weight:700}
+nav{display:flex;gap:.85rem;font-size:.82rem;font-weight:600;margin-left:auto}
+nav a{color:#737373;text-decoration:none}nav a:hover{color:#fafafa}
+canvas{position:fixed;top:48px;left:0;right:0;bottom:0}
+.legend{position:fixed;bottom:12px;left:12px;font-size:.68rem;color:#525252;line-height:1.8}
+.legend b{color:#f59e0b}
+</style>
+</head>
+<body>
+<header>
+<a href="/" class="brand"><span class="brand-emoji">🔗</span><span class="brand-name">FreeCryptoStore</span></a>
+<nav><a href="/">All</a><a href="/institute/">Institute</a><a href="/creators/">Creators</a><a href="/challenges/">Challenges</a><a href="/collections/">Paths</a><a href="/relations/">Relations</a></nav>
+</header>
+<canvas id="graph"></canvas>
+<div class="legend">
+<b>Drag</b> nodes to rearrange<br>
+<b>Colors</b> = categories<br>
+<b>Lines</b> = shared concepts
+</div>
+<script>
+const canvas=document.getElementById('graph');
+const ctx=canvas.getContext('2d');
+let W,H;function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight-48;}
+resize();window.addEventListener('resize',resize);
+
+const COLORS={cryptography:'#f59e0b',blockchain:'#3b82f6',consensus:'#10b981',contracts:'#8b5cf6',defi:'#ec4899',network:'#06b6d4',wallet:'#6366f1',history:'#737373'};
+
+let nodes=[],edges=[];
+let dragging=null,mx=0,my=0;
+
+fetch('/registry.json').then(r=>r.json()).then(data=>{
+const items=data.robots||[];
+const catMap={};
+items.forEach((item,i)=>{
+const angle=(i/items.length)*Math.PI*2;
+const r=Math.min(W,H)*0.3;
+nodes.push({id:item.id,name:item.name,category:item.category||'blockchain',
+x:W/2+Math.cos(angle)*r+Math.random()*40,y:H/2+Math.sin(angle)*r+Math.random()*40,
+vx:0,vy:0});
+if(!catMap[item.category])catMap[item.category]=[];
+catMap[item.category].push(item.id);
+});
+// Connect items in same category
+Object.values(catMap).forEach(ids=>{
+for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
+edges.push({source:ids[i],target:ids[j]});
+}
+});
+animate();
+});
+
+function animate(){
+// Force simulation
+nodes.forEach(n=>{n.vx*=0.9;n.vy*=0.9;});
+// Repulsion
+for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
+const dx=nodes[j].x-nodes[i].x,dy=nodes[j].y-nodes[i].y;
+const d=Math.sqrt(dx*dx+dy*dy)||1;
+const f=Math.min(500/(d*d),2);
+nodes[i].vx-=dx/d*f;nodes[i].vy-=dy/d*f;
+nodes[j].vx+=dx/d*f;nodes[j].vy+=dy/d*f;
+}
+// Attraction (edges)
+edges.forEach(e=>{
+const s=nodes.find(n=>n.id===e.source),t=nodes.find(n=>n.id===e.target);
+if(!s||!t)return;
+const dx=t.x-s.x,dy=t.y-s.y;
+const d=Math.sqrt(dx*dx+dy*dy)||1;
+const f=(d-100)*0.003;
+s.vx+=dx/d*f;s.vy+=dy/d*f;
+t.vx-=dx/d*f;t.vy-=dy/d*f;
+});
+// Center gravity
+nodes.forEach(n=>{n.vx+=(W/2-n.x)*0.001;n.vy+=(H/2-n.y)*0.001;});
+// Update positions
+nodes.forEach(n=>{
+if(n===dragging)return;
+n.x+=n.vx;n.y+=n.vy;
+n.x=Math.max(40,Math.min(W-40,n.x));
+n.y=Math.max(40,Math.min(H-40,n.y));
+});
+draw();
+requestAnimationFrame(animate);
+}
+
+function draw(){
+ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,W,H);
+// Edges
+edges.forEach(e=>{
+const s=nodes.find(n=>n.id===e.source),t=nodes.find(n=>n.id===e.target);
+if(!s||!t)return;
+ctx.strokeStyle='rgba(64,64,64,0.3)';ctx.lineWidth=0.5;
+ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(t.x,t.y);ctx.stroke();
+});
+// Nodes
+nodes.forEach(n=>{
+const color=COLORS[n.category]||'#f59e0b';
+ctx.fillStyle=color;ctx.beginPath();ctx.arc(n.x,n.y,8,0,Math.PI*2);ctx.fill();
+ctx.fillStyle='#fafafa';ctx.font='600 10px Manrope,system-ui';ctx.textAlign='center';
+ctx.fillText(n.name,n.x,n.y+20);
+});
+}
+
+canvas.addEventListener('mousedown',e=>{
+const rect=canvas.getBoundingClientRect();
+mx=e.clientX-rect.left;my=e.clientY-rect.top-48;
+dragging=nodes.find(n=>Math.hypot(n.x-mx,n.y-my)<15);
+});
+canvas.addEventListener('mousemove',e=>{
+if(!dragging)return;
+const rect=canvas.getBoundingClientRect();
+dragging.x=e.clientX-rect.left;dragging.y=e.clientY-rect.top;
+});
+canvas.addEventListener('mouseup',()=>dragging=null);
+canvas.addEventListener('dblclick',e=>{
+const rect=canvas.getBoundingClientRect();
+const cx=e.clientX-rect.left,cy=e.clientY-rect.top;
+const node=nodes.find(n=>Math.hypot(n.x-cx,n.y-cy)<15);
+if(node)window.location.href='/items/'+node.id+'/';
+});
+</script>
+</body>
+</html>

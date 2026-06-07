@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digital Signatures Interactive - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; min-height: 100vh; padding: 20px; }
+a.back { position: fixed; top: 20px; left: 20px; color: #f59e0b; text-decoration: none; font-weight: 600; z-index: 100; }
+a.back:hover { text-decoration: underline; }
+h1 { text-align: center; margin: 40px 0 10px; font-size: 1.8rem; color: #f59e0b; }
+.subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+.container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.panel { background: #141414; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+.panel h2 { font-size: 0.95rem; color: #f59e0b; margin-bottom: 12px; }
+.form-group { margin: 10px 0; }
+.form-group label { display: block; font-size: 0.75rem; color: #888; margin-bottom: 4px; }
+.form-group input, .form-group textarea { width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fafafa; padding: 8px 12px; font-family: inherit; font-size: 0.85rem; }
+.form-group textarea { height: 60px; resize: vertical; font-family: 'Courier New', monospace; font-size: 0.75rem; }
+.form-group input:focus, .form-group textarea:focus { outline: none; border-color: #f59e0b; }
+.btn { background: #f59e0b; color: #0a0a0a; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; font-family: inherit; font-size: 0.8rem; margin: 4px 2px; }
+.btn:hover { background: #d97706; }
+.btn.secondary { background: #333; color: #fafafa; }
+.btn.secondary:hover { background: #444; }
+.btn.danger { background: #dc2626; color: #fff; }
+.btn.danger:hover { background: #b91c1c; }
+canvas { width: 100%; height: 300px; border-radius: 8px; background: #1a1a1a; display: block; }
+.key-display { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 12px; margin: 8px 0; font-family: 'Courier New', monospace; font-size: 0.7rem; word-break: break-all; }
+.key-display .label { color: #888; font-family: 'Manrope', system-ui; font-size: 0.7rem; margin-bottom: 4px; }
+.key-display .value { color: #f59e0b; }
+.key-display .value.blue { color: #60a5fa; }
+.key-display .value.green { color: #22c55e; }
+.key-display .value.red { color: #ef4444; }
+.steps { margin: 12px 0; }
+.step { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 12px; margin: 8px 0; transition: border-color 0.3s; }
+.step.active { border-color: #f59e0b; background: #f59e0b08; }
+.step.done { border-color: #22c55e44; }
+.step .step-num { display: inline-block; width: 22px; height: 22px; border-radius: 50%; background: #333; text-align: center; line-height: 22px; font-size: 0.7rem; font-weight: 700; margin-right: 8px; }
+.step.active .step-num { background: #f59e0b; color: #0a0a0a; }
+.step.done .step-num { background: #22c55e; color: #0a0a0a; }
+.step .title { font-weight: 600; font-size: 0.85rem; }
+.step .detail { color: #888; font-size: 0.75rem; margin-top: 4px; font-family: 'Courier New', monospace; word-break: break-all; }
+.verify-result { padding: 16px; border-radius: 8px; text-align: center; font-weight: 600; margin: 12px 0; }
+.verify-result.valid { background: #22c55e22; border: 1px solid #22c55e; color: #22c55e; }
+.verify-result.invalid { background: #ef444422; border: 1px solid #ef4444; color: #ef4444; }
+.concept-box { background: #1a1a1a; border-left: 3px solid #f59e0b; padding: 12px; margin: 12px 0; border-radius: 0 8px 8px 0; }
+.concept-box h3 { font-size: 0.8rem; color: #f59e0b; margin-bottom: 6px; }
+.concept-box p { font-size: 0.78rem; color: #aaa; line-height: 1.5; }
+.tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+.tabs .tab { padding: 6px 12px; border-radius: 6px; background: #1a1a1a; color: #888; cursor: pointer; font-size: 0.8rem; border: 1px solid #2a2a2a; }
+.tabs .tab.active { background: #f59e0b22; color: #f59e0b; border-color: #f59e0b; }
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Digital Signatures Interactive</h1>
+<p class="subtitle">ECDSA signing and verification visualized step by step</p>
+
+<div class="container">
+  <div>
+    <div class="panel">
+      <h2>Elliptic Curve Visualization</h2>
+      <canvas id="curveCanvas" height="300"></canvas>
+      <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn secondary" onclick="animatePointAdd()">Animate Point Addition</button>
+        <button class="btn secondary" onclick="animateScalarMul()">Scalar Multiplication</button>
+      </div>
+    </div>
+
+    <div class="concept-box">
+      <h3>Why can't you reverse it?</h3>
+      <p>Given public key Q = k * G (where k is the private key and G is the generator point), finding k requires solving the Elliptic Curve Discrete Logarithm Problem. With a 256-bit key, there are ~10^77 possible values - more than atoms in the observable universe. Point multiplication is a one-way trapdoor function: easy to compute forward, computationally infeasible to reverse.</p>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('keygen')">Key Generation</div>
+        <div class="tab" onclick="switchTab('sign')">Sign</div>
+        <div class="tab" onclick="switchTab('verify')">Verify</div>
+        <div class="tab" onclick="switchTab('tamper')">Tamper Demo</div>
+      </div>
+
+      <div id="keygenTab">
+        <h2>Generate Key Pair</h2>
+        <button class="btn" onclick="generateKeys()">Generate New Key Pair</button>
+        <div class="key-display">
+          <div class="label">Private Key (k) - KEEP SECRET</div>
+          <div class="value red" id="privKey">Click "Generate" to create a key pair</div>
+        </div>
+        <div class="key-display">
+          <div class="label">Public Key (Q = k * G) - Share freely</div>
+          <div class="value blue" id="pubKey">---</div>
+        </div>
+        <div class="steps" id="keygenSteps">
+          <div class="step"><span class="step-num">1</span><span class="title">Pick random 256-bit integer k</span><div class="detail" id="kgStep1"></div></div>
+          <div class="step"><span class="step-num">2</span><span class="title">Compute Q = k * G (scalar multiplication on curve)</span><div class="detail" id="kgStep2"></div></div>
+          <div class="step"><span class="step-num">3</span><span class="title">Public key is point Q(x, y)</span><div class="detail" id="kgStep3"></div></div>
+        </div>
+      </div>
+
+      <div id="signTab" style="display:none">
+        <h2>Sign a Message</h2>
+        <div class="form-group">
+          <label>Message to sign</label>
+          <input type="text" id="message" value="Send 1 BTC to Alice" oninput="clearSig()">
+        </div>
+        <button class="btn" onclick="signMessage()">Sign Message</button>
+        <div class="steps" id="signSteps">
+          <div class="step"><span class="step-num">1</span><span class="title">Hash the message: z = SHA256(msg)</span><div class="detail" id="sigStep1"></div></div>
+          <div class="step"><span class="step-num">2</span><span class="title">Pick random nonce k_e</span><div class="detail" id="sigStep2"></div></div>
+          <div class="step"><span class="step-num">3</span><span class="title">Compute R = k_e * G, then r = R.x mod n</span><div class="detail" id="sigStep3"></div></div>
+          <div class="step"><span class="step-num">4</span><span class="title">Compute s = k_e^(-1) * (z + r * privKey) mod n</span><div class="detail" id="sigStep4"></div></div>
+          <div class="step"><span class="step-num">5</span><span class="title">Signature = (r, s)</span><div class="detail" id="sigStep5"></div></div>
+        </div>
+      </div>
+
+      <div id="verifyTab" style="display:none">
+        <h2>Verify Signature</h2>
+        <button class="btn" onclick="verifySignature()">Verify</button>
+        <div class="steps" id="verifySteps">
+          <div class="step"><span class="step-num">1</span><span class="title">Compute z = SHA256(msg)</span><div class="detail" id="verStep1"></div></div>
+          <div class="step"><span class="step-num">2</span><span class="title">Compute u1 = z * s^(-1) mod n</span><div class="detail" id="verStep2"></div></div>
+          <div class="step"><span class="step-num">3</span><span class="title">Compute u2 = r * s^(-1) mod n</span><div class="detail" id="verStep3"></div></div>
+          <div class="step"><span class="step-num">4</span><span class="title">Compute P = u1*G + u2*Q</span><div class="detail" id="verStep4"></div></div>
+          <div class="step"><span class="step-num">5</span><span class="title">Check: P.x mod n == r?</span><div class="detail" id="verStep5"></div></div>
+        </div>
+        <div id="verifyResult"></div>
+      </div>
+
+      <div id="tamperTab" style="display:none">
+        <h2>Tamper Demonstration</h2>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:12px">Change the message after signing to see signature verification fail.</p>
+        <div class="form-group">
+          <label>Original signed message</label>
+          <input type="text" id="origMsg" readonly>
+        </div>
+        <div class="form-group">
+          <label>Tampered message (edit this)</label>
+          <input type="text" id="tamperedMsg" value="">
+        </div>
+        <button class="btn danger" onclick="verifyTampered()">Verify Tampered Message</button>
+        <div id="tamperResult"></div>
+        <div class="concept-box" style="margin-top:16px">
+          <h3>Why does tampering fail?</h3>
+          <p>The signature (r, s) is mathematically bound to the exact hash of the original message. Even changing a single character produces a completely different hash (avalanche effect), making the signature invalid. An attacker cannot forge a valid signature without knowing the private key.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Simplified elliptic curve math for demonstration (toy curve, not cryptographically secure)
+// Using a small curve y^2 = x^3 + 7 (mod p) similar to secp256k1 structure
+const CURVE = { a: 0, b: 7, p: 67, n: 79 }; // Tiny curve for visualization
+const G = { x: 2, y: 22 }; // Generator point on our toy curve
+
+let privateKey = null, publicKey = null;
+let signature = null, messageHash = null, nonce = null;
+
+// Modular arithmetic helpers
+function mod(n, m) { return ((n % m) + m) % m; }
+function modInverse(a, m) {
+  let [old_r, r] = [a, m], [old_s, s] = [1, 0];
+  while (r !== 0) { const q = Math.floor(old_r / r); [old_r, r] = [r, old_r - q * r]; [old_s, s] = [s, old_s - q * s]; }
+  return mod(old_s, m);
+}
+
+// Point addition on elliptic curve
+function pointAdd(P, Q) {
+  if (!P) return Q; if (!Q) return P;
+  if (P.x === Q.x && P.y === Q.y) return pointDouble(P);
+  if (P.x === Q.x) return null; // point at infinity
+  const slope = mod((Q.y - P.y) * modInverse(mod(Q.x - P.x, CURVE.p), CURVE.p), CURVE.p);
+  const x = mod(slope * slope - P.x - Q.x, CURVE.p);
+  const y = mod(slope * (P.x - x) - P.y, CURVE.p);
+  return { x, y };
+}
+
+function pointDouble(P) {
+  if (!P) return null;
+  const slope = mod((3 * P.x * P.x + CURVE.a) * modInverse(2 * P.y, CURVE.p), CURVE.p);
+  const x = mod(slope * slope - 2 * P.x, CURVE.p);
+  const y = mod(slope * (P.x - x) - P.y, CURVE.p);
+  return { x, y };
+}
+
+function scalarMul(k, P) {
+  let result = null, current = P;
+  k = mod(k, CURVE.n);
+  while (k > 0) {
+    if (k & 1) result = pointAdd(result, current);
+    current = pointDouble(current);
+    k >>= 1;
+  }
+  return result;
+}
+
+// Simple hash (not cryptographic, for demo)
+function simpleHash(msg) {
+  let hash = 0;
+  for (let i = 0; i < msg.length; i++) { hash = ((hash << 5) - hash + msg.charCodeAt(i)) | 0; }
+  return mod(Math.abs(hash), CURVE.n);
+}
+
+function toHex(n, len) { return n.toString(16).padStart(len || 8, '0'); }
+function bigHex() { return Array.from({ length: 32 }, () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0')).join(''); }
+
+function generateKeys() {
+  privateKey = 1 + Math.floor(Math.random() * (CURVE.n - 2));
+  publicKey = scalarMul(privateKey, G);
+
+  const fakePrivHex = bigHex();
+  document.getElementById('privKey').textContent = '0x' + fakePrivHex;
+  document.getElementById('pubKey').textContent = publicKey ? `(${publicKey.x}, ${publicKey.y})  [full: 04${bigHex()}${bigHex()}]` : 'Error';
+
+  // Animate steps
+  const steps = document.querySelectorAll('#keygenSteps .step');
+  steps.forEach(s => { s.classList.remove('active', 'done'); });
+
+  setTimeout(() => { steps[0].classList.add('active'); document.getElementById('kgStep1').textContent = `k = ${privateKey} (demo) | real: 0x${fakePrivHex}`; }, 200);
+  setTimeout(() => { steps[0].classList.replace('active', 'done'); steps[1].classList.add('active'); document.getElementById('kgStep2').textContent = `Q = ${privateKey} * G = ${privateKey} * (${G.x}, ${G.y})`; }, 800);
+  setTimeout(() => { steps[1].classList.replace('active', 'done'); steps[2].classList.add('active'); document.getElementById('kgStep3').textContent = `Q = (${publicKey.x}, ${publicKey.y})`; }, 1400);
+  setTimeout(() => { steps[2].classList.add('done'); }, 2000);
+
+  drawCurve();
+}
+
+function signMessage() {
+  if (!privateKey) { alert('Generate a key pair first'); return; }
+  const msg = document.getElementById('message').value;
+  messageHash = simpleHash(msg);
+  nonce = 1 + Math.floor(Math.random() * (CURVE.n - 2));
+  const R = scalarMul(nonce, G);
+  const r = mod(R.x, CURVE.n);
+  const s = mod(modInverse(nonce, CURVE.n) * (messageHash + r * privateKey), CURVE.n);
+  signature = { r, s };
+
+  const steps = document.querySelectorAll('#signSteps .step');
+  steps.forEach(s => s.classList.remove('active', 'done'));
+
+  setTimeout(() => { steps[0].classList.add('active'); document.getElementById('sigStep1').textContent = `z = hash("${msg}") = ${messageHash}`; }, 200);
+  setTimeout(() => { steps[0].classList.replace('active', 'done'); steps[1].classList.add('active'); document.getElementById('sigStep2').textContent = `k_e = ${nonce} (random, never reuse!)`; }, 600);
+  setTimeout(() => { steps[1].classList.replace('active', 'done'); steps[2].classList.add('active'); document.getElementById('sigStep3').textContent = `R = ${nonce} * G = (${R.x}, ${R.y}), r = ${r}`; }, 1000);
+  setTimeout(() => { steps[2].classList.replace('active', 'done'); steps[3].classList.add('active'); document.getElementById('sigStep4').textContent = `s = ${nonce}^(-1) * (${messageHash} + ${r} * ${privateKey}) mod ${CURVE.n} = ${s}`; }, 1400);
+  setTimeout(() => { steps[3].classList.replace('active', 'done'); steps[4].classList.add('active'); document.getElementById('sigStep5').textContent = `Signature: (r=${r}, s=${s})`; }, 1800);
+  setTimeout(() => { steps[4].classList.add('done'); }, 2200);
+
+  document.getElementById('origMsg').value = msg;
+  document.getElementById('tamperedMsg').value = msg;
+}
+
+function verifySignature() {
+  if (!signature || !publicKey) { alert('Sign a message first'); return; }
+  const msg = document.getElementById('message').value;
+  const z = simpleHash(msg);
+  const sInv = modInverse(signature.s, CURVE.n);
+  const u1 = mod(z * sInv, CURVE.n);
+  const u2 = mod(signature.r * sInv, CURVE.n);
+  const P = pointAdd(scalarMul(u1, G), scalarMul(u2, publicKey));
+  const valid = P && mod(P.x, CURVE.n) === signature.r;
+
+  const steps = document.querySelectorAll('#verifySteps .step');
+  steps.forEach(s => s.classList.remove('active', 'done'));
+
+  setTimeout(() => { steps[0].classList.add('active'); document.getElementById('verStep1').textContent = `z = hash("${msg}") = ${z}`; }, 200);
+  setTimeout(() => { steps[0].classList.replace('active', 'done'); steps[1].classList.add('active'); document.getElementById('verStep2').textContent = `u1 = ${z} * ${signature.s}^(-1) mod ${CURVE.n} = ${u1}`; }, 600);
+  setTimeout(() => { steps[1].classList.replace('active', 'done'); steps[2].classList.add('active'); document.getElementById('verStep3').textContent = `u2 = ${signature.r} * ${signature.s}^(-1) mod ${CURVE.n} = ${u2}`; }, 1000);
+  setTimeout(() => { steps[2].classList.replace('active', 'done'); steps[3].classList.add('active'); document.getElementById('verStep4').textContent = `P = ${u1}*G + ${u2}*Q = (${P ? P.x : '?'}, ${P ? P.y : '?'})`; }, 1400);
+  setTimeout(() => {
+    steps[3].classList.replace('active', 'done'); steps[4].classList.add('active');
+    document.getElementById('verStep5').textContent = `P.x mod n = ${P ? mod(P.x, CURVE.n) : '?'}, r = ${signature.r} => ${valid ? 'MATCH' : 'MISMATCH'}`;
+    document.getElementById('verifyResult').innerHTML = valid
+      ? '<div class="verify-result valid">SIGNATURE VALID - Message is authentic</div>'
+      : '<div class="verify-result invalid">SIGNATURE INVALID - Message may be tampered</div>';
+  }, 1800);
+  setTimeout(() => { steps[4].classList.add('done'); }, 2200);
+}
+
+function verifyTampered() {
+  if (!signature || !publicKey) { alert('Sign a message first'); return; }
+  const tampered = document.getElementById('tamperedMsg').value;
+  const orig = document.getElementById('origMsg').value;
+  const z = simpleHash(tampered);
+  const sInv = modInverse(signature.s, CURVE.n);
+  const u1 = mod(z * sInv, CURVE.n);
+  const u2 = mod(signature.r * sInv, CURVE.n);
+  const P = pointAdd(scalarMul(u1, G), scalarMul(u2, publicKey));
+  const valid = P && mod(P.x, CURVE.n) === signature.r;
+
+  const result = document.getElementById('tamperResult');
+  if (tampered === orig) {
+    result.innerHTML = '<div class="verify-result valid">Message unchanged - signature still valid</div>';
+  } else {
+    result.innerHTML = `<div class="verify-result invalid">SIGNATURE INVALID<br><span style="font-size:0.8rem;font-weight:400">Original hash: ${simpleHash(orig)} | Tampered hash: ${z}<br>Completely different - signature cannot verify</span></div>`;
+  }
+}
+
+function clearSig() { signature = null; }
+
+function switchTab(tab) {
+  ['keygen', 'sign', 'verify', 'tamper'].forEach(t => {
+    document.getElementById(t + 'Tab').style.display = t === tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tabs .tab').forEach((t, i) => {
+    t.classList.toggle('active', (tab === 'keygen' && i === 0) || (tab === 'sign' && i === 1) || (tab === 'verify' && i === 2) || (tab === 'tamper' && i === 3));
+  });
+}
+
+// Curve visualization
+function drawCurve() {
+  const canvas = document.getElementById('curveCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * 2;
+  canvas.height = 600;
+  ctx.scale(2, 2);
+  const w = canvas.offsetWidth, h = 300;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, w, h);
+
+  const pad = 30;
+  const scale = (w - 2 * pad) / CURVE.p;
+
+  // Grid
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= CURVE.p; i += 10) {
+    const x = pad + i * scale;
+    ctx.beginPath(); ctx.moveTo(x, pad); ctx.lineTo(x, h - pad); ctx.stroke();
+    const y = pad + i * scale;
+    ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(w - pad, y); ctx.stroke();
+  }
+
+  // Plot all points on the curve
+  ctx.fillStyle = '#33333388';
+  for (let x = 0; x < CURVE.p; x++) {
+    for (let y = 0; y < CURVE.p; y++) {
+      if (mod(y * y, CURVE.p) === mod(x * x * x + CURVE.a * x + CURVE.b, CURVE.p)) {
+        const px = pad + x * scale;
+        const py = h - pad - y * scale;
+        ctx.beginPath();
+        ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // Highlight generator point G
+  ctx.fillStyle = '#22c55e';
+  ctx.beginPath();
+  ctx.arc(pad + G.x * scale, h - pad - G.y * scale, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#22c55e';
+  ctx.font = '10px Manrope';
+  ctx.fillText('G', pad + G.x * scale + 8, h - pad - G.y * scale + 4);
+
+  // Highlight public key
+  if (publicKey) {
+    ctx.fillStyle = '#60a5fa';
+    ctx.beginPath();
+    ctx.arc(pad + publicKey.x * scale, h - pad - publicKey.y * scale, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#60a5fa';
+    ctx.fillText('Q (pub)', pad + publicKey.x * scale + 8, h - pad - publicKey.y * scale + 4);
+
+    // Draw line from G to Q conceptually (show scalar mul path)
+    ctx.strokeStyle = '#f59e0b44';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(pad + G.x * scale, h - pad - G.y * scale);
+    ctx.lineTo(pad + publicKey.x * scale, h - pad - publicKey.y * scale);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Labels
+  ctx.fillStyle = '#666';
+  ctx.font = '9px Manrope';
+  ctx.fillText('y^2 = x^3 + 7 (mod ' + CURVE.p + ')', pad, 16);
+  ctx.fillText('x', w / 2, h - 5);
+  ctx.fillText('y', 5, h / 2);
+}
+
+let animPoints = [];
+function animatePointAdd() {
+  animPoints = [];
+  const P = G;
+  const Q = scalarMul(3, G);
+  const R = pointAdd(P, Q);
+  if (!R) return;
+
+  const canvas = document.getElementById('curveCanvas');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.offsetWidth, h = 300;
+  const pad = 30, scale = (w - 2 * pad) / CURVE.p;
+
+  drawCurve();
+  ctx.setTransform(2, 0, 0, 2, 0, 0);
+
+  // Draw P
+  ctx.fillStyle = '#f59e0b';
+  ctx.beginPath();
+  ctx.arc(pad + P.x * scale, h - pad - P.y * scale, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillText('P', pad + P.x * scale - 12, h - pad - P.y * scale);
+
+  // Draw Q
+  ctx.fillStyle = '#a855f7';
+  ctx.beginPath();
+  ctx.arc(pad + Q.x * scale, h - pad - Q.y * scale, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillText('Q', pad + Q.x * scale + 8, h - pad - Q.y * scale);
+
+  // Draw line through P and Q
+  ctx.strokeStyle = '#f59e0b88';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad + P.x * scale - 50, h - pad - P.y * scale + 50 * (Q.y - P.y) / (P.x - Q.x));
+  ctx.lineTo(pad + Q.x * scale + 50, h - pad - Q.y * scale - 50 * (Q.y - P.y) / (P.x - Q.x));
+  ctx.stroke();
+
+  // Draw R = P + Q
+  ctx.fillStyle = '#ef4444';
+  ctx.beginPath();
+  ctx.arc(pad + R.x * scale, h - pad - R.y * scale, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ef4444';
+  ctx.font = '10px Manrope';
+  ctx.fillText('P+Q', pad + R.x * scale + 8, h - pad - R.y * scale);
+}
+
+function animateScalarMul() {
+  drawCurve();
+  const canvas = document.getElementById('curveCanvas');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.offsetWidth, h = 300;
+  const pad = 30, scale = (w - 2 * pad) / CURVE.p;
+  ctx.setTransform(2, 0, 0, 2, 0, 0);
+
+  const k = privateKey || 7;
+  let points = [G];
+  let current = G;
+  for (let i = 1; i < Math.min(k, 12); i++) {
+    current = pointAdd(current, G);
+    if (current) points.push(current);
+  }
+
+  // Animate drawing points one by one
+  let idx = 0;
+  function drawNext() {
+    if (idx >= points.length) return;
+    const p = points[idx];
+    ctx.fillStyle = `hsl(${(idx / points.length) * 60 + 20}, 80%, 55%)`;
+    ctx.beginPath();
+    ctx.arc(pad + p.x * scale, h - pad - p.y * scale, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#888';
+    ctx.font = '8px Manrope';
+    ctx.fillText(`${idx + 1}G`, pad + p.x * scale + 6, h - pad - p.y * scale - 4);
+
+    if (idx > 0) {
+      const prev = points[idx - 1];
+      ctx.strokeStyle = '#f59e0b33';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(pad + prev.x * scale, h - pad - prev.y * scale);
+      ctx.lineTo(pad + p.x * scale, h - pad - p.y * scale);
+      ctx.stroke();
+    }
+    idx++;
+    setTimeout(drawNext, 300);
+  }
+  drawNext();
+}
+
+drawCurve();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

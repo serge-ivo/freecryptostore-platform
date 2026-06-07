@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consensus Algorithm Visualizer - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;padding:20px;min-height:100vh}
+a.back{position:fixed;top:20px;left:20px;color:#f59e0b;text-decoration:none;font-weight:600;z-index:100}
+a.back:hover{text-decoration:underline}
+h1{text-align:center;margin:40px 0 10px;font-size:2rem;color:#f59e0b}
+.subtitle{text-align:center;color:#888;margin-bottom:30px}
+.container{max-width:1100px;margin:0 auto}
+.controls{background:#141414;border:1px solid #222;border-radius:12px;padding:20px;margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.controls label{color:#888;font-size:0.85rem}
+.controls select,.controls input[type="range"]{background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:8px 12px;color:#fafafa;font-family:'Manrope',system-ui,sans-serif}
+.controls button{background:#f59e0b;color:#0a0a0a;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-weight:600;font-family:'Manrope',system-ui,sans-serif}
+.controls button:hover{background:#d97706}
+.controls button.danger{background:#ef4444}
+.controls button.danger:hover{background:#dc2626}
+.controls button.secondary{background:#333;color:#fafafa}
+.canvas-wrap{background:#141414;border:1px solid #222;border-radius:12px;overflow:hidden;margin-bottom:20px}
+canvas{display:block;width:100%;height:500px}
+.info-bar{background:#141414;border:1px solid #222;border-radius:12px;padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.info-item h3{color:#f59e0b;font-size:0.8rem;text-transform:uppercase;margin-bottom:4px}
+.info-item p{font-size:0.9rem}
+.log{background:#141414;border:1px solid #222;border-radius:12px;padding:20px;margin-top:20px;max-height:200px;overflow-y:auto}
+.log h3{color:#f59e0b;margin-bottom:10px;font-size:0.9rem}
+.log-entry{font-family:monospace;font-size:0.75rem;color:#888;padding:2px 0;border-bottom:1px solid #1a1a1a}
+.log-entry.important{color:#f59e0b}
+.log-entry.error{color:#ef4444}
+.byzantine-count{color:#ef4444;font-weight:700}
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<div class="container">
+<h1>Consensus Algorithm Visualizer</h1>
+<p class="subtitle">Watch nodes reach agreement across different protocols</p>
+
+<div class="controls">
+<label>Algorithm:</label>
+<select id="algoSelect" onchange="switchAlgo()">
+<option value="pow">Proof of Work</option>
+<option value="pos">Proof of Stake</option>
+<option value="pbft">PBFT</option>
+</select>
+<label>Nodes:</label>
+<select id="nodeCount" onchange="resetSim()">
+<option value="10">10</option>
+<option value="15" selected>15</option>
+<option value="20">20</option>
+</select>
+<button onclick="startRound()">New Round</button>
+<button class="secondary" onclick="toggleAuto()">Auto: <span id="autoLabel">Off</span></button>
+<button class="danger" onclick="toggleByzantine()">Toggle Byzantine</button>
+<span style="color:#888;font-size:0.8rem">Byzantine: <span class="byzantine-count" id="byzCount">0</span>/<span id="totalNodes">15</span></span>
+</div>
+
+<div class="canvas-wrap">
+<canvas id="canvas"></canvas>
+</div>
+
+<div class="info-bar">
+<div class="info-item"><h3>Status</h3><p id="statusText">Idle</p></div>
+<div class="info-item"><h3>Round</h3><p id="roundNum">0</p></div>
+<div class="info-item"><h3>Consensus</h3><p id="consensusResult">-</p></div>
+<div class="info-item"><h3>Threshold</h3><p id="thresholdInfo">-</p></div>
+</div>
+
+<div class="log">
+<h3>Event Log</h3>
+<div id="logEntries"></div>
+</div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+let nodes = [];
+let messages = [];
+let roundCount = 0;
+let animFrame = null;
+let autoMode = false;
+let autoTimer = null;
+let currentAlgo = 'pow';
+let simState = 'idle';
+let simStep = 0;
+let simTimer = null;
+
+function resize() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * devicePixelRatio;
+  canvas.height = 500 * devicePixelRatio;
+  W = rect.width;
+  H = 500;
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+
+function initNodes() {
+  const count = parseInt(document.getElementById('nodeCount').value);
+  document.getElementById('totalNodes').textContent = count;
+  nodes = [];
+  const cx = W / 2, cy = H / 2, r = Math.min(W, H) * 0.35;
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2 - Math.PI / 2;
+    nodes.push({
+      id: i,
+      x: cx + Math.cos(angle) * r,
+      y: cy + Math.sin(angle) * r,
+      byzantine: false,
+      state: 'idle', // idle, working, proposed, verified, committed
+      stake: Math.floor(Math.random() * 90) + 10,
+      hashPower: Math.random() * 0.8 + 0.2,
+      progress: 0,
+      color: '#f59e0b'
+    });
+  }
+  messages = [];
+  updateByzCount();
+}
+
+function updateByzCount() {
+  document.getElementById('byzCount').textContent = nodes.filter(n => n.byzantine).length;
+}
+
+function toggleByzantine() {
+  // Toggle a random honest node to byzantine or vice versa
+  const honest = nodes.filter(n => !n.byzantine);
+  const byz = nodes.filter(n => n.byzantine);
+  if (honest.length > Math.ceil(nodes.length / 2)) {
+    const n = honest[Math.floor(Math.random() * honest.length)];
+    n.byzantine = true;
+    n.color = '#ef4444';
+    log(`Node ${n.id} turned BYZANTINE`, 'error');
+  } else if (byz.length > 0) {
+    const n = byz[Math.floor(Math.random() * byz.length)];
+    n.byzantine = false;
+    n.color = '#f59e0b';
+    log(`Node ${n.id} turned honest`, 'important');
+  }
+  updateByzCount();
+}
+
+function switchAlgo() {
+  currentAlgo = document.getElementById('algoSelect').value;
+  resetSim();
+  const thresholds = { pow: '>50% hashpower', pos: '>50% stake', pbft: '>2/3 nodes (tolerates <1/3 Byzantine)' };
+  document.getElementById('thresholdInfo').textContent = thresholds[currentAlgo];
+}
+
+function resetSim() {
+  stopSim();
+  roundCount = 0;
+  document.getElementById('roundNum').textContent = '0';
+  document.getElementById('statusText').textContent = 'Idle';
+  document.getElementById('consensusResult').textContent = '-';
+  resize();
+  initNodes();
+  switchAlgo();
+  draw();
+}
+
+function stopSim() {
+  simState = 'idle';
+  if (simTimer) clearTimeout(simTimer);
+  simTimer = null;
+}
+
+function startRound() {
+  stopSim();
+  roundCount++;
+  document.getElementById('roundNum').textContent = roundCount;
+  nodes.forEach(n => { n.state = 'idle'; n.progress = 0; });
+  messages = [];
+
+  if (currentAlgo === 'pow') startPoW();
+  else if (currentAlgo === 'pos') startPoS();
+  else startPBFT();
+}
+
+// ---- Proof of Work ----
+function startPoW() {
+  simState = 'pow-mining';
+  document.getElementById('statusText').textContent = 'Mining...';
+  log('PoW round started - nodes racing to find hash', 'important');
+  nodes.forEach(n => { n.state = 'working'; n.progress = 0; });
+  powStep();
+}
+
+function powStep() {
+  if (simState !== 'pow-mining') return;
+  let winner = null;
+  nodes.forEach(n => {
+    if (n.state !== 'working') return;
+    const increment = n.byzantine ? n.hashPower * 0.02 : n.hashPower * 0.03;
+    n.progress += increment * (Math.random() + 0.5);
+    if (n.progress >= 1 && !winner) winner = n;
+  });
+
+  if (winner) {
+    winner.state = 'proposed';
+    log(`Node ${winner.id} found valid hash!${winner.byzantine ? ' (Byzantine - invalid block)' : ''}`, winner.byzantine ? 'error' : 'important');
+    document.getElementById('statusText').textContent = 'Broadcasting block...';
+    // Broadcast to all
+    nodes.forEach(n => {
+      if (n.id !== winner.id) {
+        messages.push({ from: winner, to: n, progress: 0, type: 'block' });
+      }
+    });
+    simState = 'pow-verify';
+    simTimer = setTimeout(powVerify, 2000);
+  } else {
+    simTimer = setTimeout(powStep, 50);
+  }
+  draw();
+}
+
+function powVerify() {
+  const byzCount = nodes.filter(n => n.byzantine).length;
+  const proposer = nodes.find(n => n.state === 'proposed');
+  if (proposer && proposer.byzantine && byzCount <= nodes.length / 2) {
+    nodes.forEach(n => { if (!n.byzantine) n.state = 'idle'; });
+    document.getElementById('consensusResult').textContent = 'REJECTED (invalid block)';
+    log('Honest majority rejected Byzantine block', 'error');
+  } else if (proposer && !proposer.byzantine) {
+    nodes.forEach(n => { n.state = 'verified'; });
+    document.getElementById('consensusResult').textContent = 'ACCEPTED';
+    log('Block accepted by network');
+  } else {
+    document.getElementById('consensusResult').textContent = 'FORK (>50% Byzantine)';
+    log('Byzantine majority forced invalid block!', 'error');
+  }
+  document.getElementById('statusText').textContent = 'Complete';
+  simState = 'idle';
+  messages = [];
+  draw();
+  if (autoMode) autoTimer = setTimeout(startRound, 2000);
+}
+
+// ---- Proof of Stake ----
+function startPoS() {
+  simState = 'pos-select';
+  document.getElementById('statusText').textContent = 'Selecting validator...';
+  log('PoS round started - selecting validator by stake weight', 'important');
+
+  // Weighted random by stake
+  const totalStake = nodes.reduce((s, n) => s + n.stake, 0);
+  let r = Math.random() * totalStake;
+  let validator = nodes[0];
+  for (const n of nodes) {
+    r -= n.stake;
+    if (r <= 0) { validator = n; break; }
+  }
+
+  validator.state = 'proposed';
+  log(`Node ${validator.id} selected (stake: ${validator.stake})${validator.byzantine ? ' - BYZANTINE!' : ''}`);
+  document.getElementById('statusText').textContent = `Validator: Node ${validator.id} (stake ${validator.stake})`;
+
+  // Broadcast proposal
+  setTimeout(() => {
+    nodes.forEach(n => {
+      if (n.id !== validator.id) {
+        messages.push({ from: validator, to: n, progress: 0, type: 'proposal' });
+      }
+    });
+    draw();
+  }, 500);
+
+  simTimer = setTimeout(() => posAttest(validator), 2000);
+}
+
+function posAttest(validator) {
+  // Honest nodes attest if validator is honest
+  let attestations = 0;
+  const totalStake = nodes.reduce((s, n) => s + n.stake, 0);
+  let attestStake = 0;
+  nodes.forEach(n => {
+    if (n.id === validator.id) return;
+    if (!n.byzantine) {
+      if (!validator.byzantine) {
+        n.state = 'verified';
+        attestations++;
+        attestStake += n.stake;
+      } else {
+        n.state = 'idle'; // reject
+      }
+    } else {
+      // Byzantine nodes always attest (even invalid)
+      n.state = 'verified';
+      attestations++;
+      attestStake += n.stake;
+    }
+  });
+
+  if (attestStake > totalStake / 2) {
+    document.getElementById('consensusResult').textContent = validator.byzantine ? 'ACCEPTED (Byzantine validator!)' : 'FINALIZED';
+    log(validator.byzantine ? 'Byzantine validator got majority stake attestation!' : 'Block finalized with majority attestation', validator.byzantine ? 'error' : '');
+  } else {
+    document.getElementById('consensusResult').textContent = 'REJECTED';
+    log('Insufficient attestations - block rejected');
+  }
+  document.getElementById('statusText').textContent = 'Complete';
+  simState = 'idle';
+  messages = [];
+  draw();
+  if (autoMode) autoTimer = setTimeout(startRound, 2000);
+}
+
+// ---- PBFT ----
+let pbftPhase = '';
+let pbftLeader = null;
+let pbftPrepareCount = 0;
+let pbftCommitCount = 0;
+
+function startPBFT() {
+  simState = 'pbft';
+  pbftLeader = nodes[roundCount % nodes.length];
+  pbftLeader.state = 'proposed';
+  pbftPhase = 'pre-prepare';
+  document.getElementById('statusText').textContent = 'PBFT: Pre-prepare';
+  log(`PBFT: Node ${pbftLeader.id} is leader (pre-prepare)${pbftLeader.byzantine ? ' - BYZANTINE!' : ''}`, 'important');
+
+  // Leader sends pre-prepare to all
+  nodes.forEach(n => {
+    if (n.id !== pbftLeader.id) {
+      messages.push({ from: pbftLeader, to: n, progress: 0, type: 'pre-prepare' });
+    }
+  });
+
+  simTimer = setTimeout(pbftPrepare, 1500);
+}
+
+function pbftPrepare() {
+  pbftPhase = 'prepare';
+  document.getElementById('statusText').textContent = 'PBFT: Prepare';
+  log('PBFT: Prepare phase - nodes exchange prepare messages');
+
+  pbftPrepareCount = 0;
+  nodes.forEach(n => {
+    if (n.id === pbftLeader.id) return;
+    if (!n.byzantine || (n.byzantine && Math.random() > 0.5)) {
+      n.state = 'working';
+      pbftPrepareCount++;
+      // Send prepare to peers
+      nodes.forEach(peer => {
+        if (peer.id !== n.id && Math.random() > 0.5) {
+          messages.push({ from: n, to: peer, progress: 0, type: 'prepare' });
+        }
+      });
+    }
+  });
+
+  simTimer = setTimeout(pbftCommit, 2000);
+}
+
+function pbftCommit() {
+  const threshold = Math.floor(nodes.length * 2 / 3);
+  pbftPhase = 'commit';
+  document.getElementById('statusText').textContent = 'PBFT: Commit';
+
+  const byzCount = nodes.filter(n => n.byzantine).length;
+  const honestCount = nodes.length - byzCount;
+
+  messages = [];
+  pbftCommitCount = 0;
+
+  nodes.forEach(n => {
+    if (!n.byzantine) {
+      if (!pbftLeader.byzantine || honestCount > threshold) {
+        n.state = 'committed';
+        pbftCommitCount++;
+      }
+    } else {
+      if (Math.random() > 0.7) {
+        n.state = 'committed';
+        pbftCommitCount++;
+      }
+    }
+  });
+
+  // Send commit messages
+  nodes.forEach(n => {
+    if (n.state === 'committed') {
+      nodes.forEach(peer => {
+        if (peer.id !== n.id && Math.random() > 0.6) {
+          messages.push({ from: n, to: peer, progress: 0, type: 'commit' });
+        }
+      });
+    }
+  });
+
+  log(`PBFT: ${pbftCommitCount}/${nodes.length} committed (need ${threshold + 1})`);
+
+  simTimer = setTimeout(() => {
+    if (pbftCommitCount > threshold) {
+      document.getElementById('consensusResult').textContent = 'CONSENSUS REACHED';
+      log('PBFT: Consensus achieved!', 'important');
+      nodes.forEach(n => n.state = 'verified');
+    } else {
+      document.getElementById('consensusResult').textContent = 'CONSENSUS FAILED';
+      log(`PBFT: Failed! Byzantine nodes (${byzCount}) >= 1/3 (${Math.ceil(nodes.length / 3)})`, 'error');
+    }
+    document.getElementById('statusText').textContent = 'Complete';
+    simState = 'idle';
+    messages = [];
+    draw();
+    if (autoMode) autoTimer = setTimeout(startRound, 2000);
+  }, 1500);
+
+  draw();
+}
+
+function toggleAuto() {
+  autoMode = !autoMode;
+  document.getElementById('autoLabel').textContent = autoMode ? 'On' : 'Off';
+  if (autoMode && simState === 'idle') startRound();
+  if (!autoMode && autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+}
+
+function log(msg, cls = '') {
+  const el = document.getElementById('logEntries');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry' + (cls ? ' ' + cls : '');
+  entry.textContent = `[R${roundCount}] ${msg}`;
+  el.prepend(entry);
+  if (el.children.length > 50) el.removeChild(el.lastChild);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Draw messages
+  messages.forEach(m => {
+    m.progress += 0.02;
+    if (m.progress > 1) m.progress = 1;
+    const x = m.from.x + (m.to.x - m.from.x) * m.progress;
+    const y = m.from.y + (m.to.y - m.from.y) * m.progress;
+    ctx.beginPath();
+    ctx.moveTo(m.from.x, m.from.y);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = m.type === 'commit' ? '#22c55e44' : m.type === 'prepare' ? '#3b82f644' : '#f59e0b44';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = m.type === 'commit' ? '#22c55e' : m.type === 'prepare' ? '#3b82f6' : '#f59e0b';
+    ctx.fill();
+  });
+  messages = messages.filter(m => m.progress < 1);
+
+  // Draw nodes
+  nodes.forEach(n => {
+    const r = 22;
+
+    // Progress ring for PoW
+    if (n.state === 'working' && currentAlgo === 'pow') {
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r + 4, -Math.PI / 2, -Math.PI / 2 + n.progress * Math.PI * 2);
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    // Node circle
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+
+    let fill = '#1a1a1a';
+    if (n.state === 'proposed') fill = '#2a1f00';
+    else if (n.state === 'verified' || n.state === 'committed') fill = '#0a2a0a';
+    else if (n.state === 'working') fill = '#1a1a2a';
+
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = n.byzantine ? '#ef4444' : (n.state === 'verified' || n.state === 'committed') ? '#22c55e' : n.state === 'proposed' ? '#f59e0b' : '#444';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Node label
+    ctx.fillStyle = n.byzantine ? '#ef4444' : '#fafafa';
+    ctx.font = '11px Manrope, system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(n.id, n.x, n.y - 4);
+
+    // Stake/power info
+    ctx.fillStyle = '#666';
+    ctx.font = '9px monospace';
+    if (currentAlgo === 'pos') ctx.fillText(`s:${n.stake}`, n.x, n.y + 8);
+    else if (currentAlgo === 'pow') ctx.fillText(`${Math.round(n.hashPower * 100)}%`, n.x, n.y + 8);
+
+    // Byzantine marker
+    if (n.byzantine) {
+      ctx.fillStyle = '#ef4444';
+      ctx.font = 'bold 10px system-ui';
+      ctx.fillText('X', n.x, n.y - r - 8);
+    }
+  });
+
+  if (simState !== 'idle' || messages.length > 0) {
+    animFrame = requestAnimationFrame(draw);
+  }
+}
+
+// Init
+window.addEventListener('resize', () => { resize(); draw(); });
+resize();
+initNodes();
+switchAlgo();
+draw();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P2P Network Simulator - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; min-height: 100vh; padding: 20px; }
+a.back { position: fixed; top: 20px; left: 20px; color: #f59e0b; text-decoration: none; font-weight: 600; z-index: 100; }
+a.back:hover { text-decoration: underline; }
+h1 { text-align: center; margin: 40px 0 10px; font-size: 1.8rem; color: #f59e0b; }
+.subtitle { text-align: center; color: #888; margin-bottom: 20px; }
+.layout { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 300px; gap: 20px; }
+.canvas-wrap { background: #141414; border: 1px solid #2a2a2a; border-radius: 12px; overflow: hidden; position: relative; }
+canvas { display: block; width: 100%; height: 500px; cursor: crosshair; }
+.sidebar { display: flex; flex-direction: column; gap: 12px; }
+.panel { background: #141414; border: 1px solid #2a2a2a; border-radius: 12px; padding: 16px; }
+.panel h2 { font-size: 0.9rem; color: #f59e0b; margin-bottom: 10px; }
+.btn { background: #f59e0b; color: #0a0a0a; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; font-family: inherit; font-size: 0.8rem; width: 100%; margin: 4px 0; }
+.btn:hover { background: #d97706; }
+.btn.secondary { background: #333; color: #fafafa; }
+.btn.secondary:hover { background: #444; }
+.btn.danger { background: #dc2626; color: #fff; }
+.btn.danger:hover { background: #b91c1c; }
+.form-group { margin: 8px 0; }
+.form-group label { font-size: 0.75rem; color: #888; display: block; margin-bottom: 4px; }
+.form-group input[type="range"] { width: 100%; accent-color: #f59e0b; }
+.form-group .range-val { font-size: 0.8rem; color: #f59e0b; text-align: right; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.legend-item { display: flex; align-items: center; gap: 4px; font-size: 0.7rem; color: #888; }
+.legend-item .dot { width: 10px; height: 10px; border-radius: 50%; }
+.info-box { background: #1a1a1a; border-radius: 6px; padding: 10px; margin-top: 8px; font-size: 0.8rem; color: #aaa; max-height: 120px; overflow-y: auto; }
+.info-box div { padding: 2px 0; border-bottom: 1px solid #222; }
+.stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.mini-stat { background: #1a1a1a; border-radius: 6px; padding: 8px; text-align: center; }
+.mini-stat .val { font-size: 1rem; font-weight: 700; color: #f59e0b; }
+.mini-stat .lbl { font-size: 0.65rem; color: #666; }
+.partition-hint { position: absolute; bottom: 10px; left: 10px; background: #0a0a0aCC; padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; color: #f59e0b; pointer-events: none; }
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>P2P Network Simulator</h1>
+<p class="subtitle">Transaction gossip, block propagation, forks, and eclipse attacks</p>
+
+<div class="layout">
+  <div class="canvas-wrap">
+    <canvas id="netCanvas"></canvas>
+    <div class="partition-hint" id="hint">Click a node to broadcast a TX. Drag between empty areas to partition.</div>
+  </div>
+  <div class="sidebar">
+    <div class="panel">
+      <h2>Controls</h2>
+      <button class="btn" onclick="broadcastTx()">Broadcast TX (random node)</button>
+      <button class="btn" onclick="mineBlock()">Mine Block (random node)</button>
+      <button class="btn secondary" onclick="partitionNetwork()">Partition Network</button>
+      <button class="btn secondary" onclick="reconnectNetwork()">Reconnect (resolve fork)</button>
+      <button class="btn danger" onclick="eclipseAttack()">Eclipse Attack</button>
+      <button class="btn secondary" onclick="resetNetwork()">Reset Network</button>
+    </div>
+    <div class="panel">
+      <h2>Settings</h2>
+      <div class="form-group">
+        <label>Latency (ms): <span class="range-val" id="latVal">200</span></label>
+        <input type="range" id="latency" min="50" max="1000" value="200" oninput="document.getElementById('latVal').textContent=this.value">
+      </div>
+      <div class="form-group">
+        <label>Node Count: <span class="range-val" id="nodeVal">20</span></label>
+        <input type="range" id="nodeCount" min="10" max="30" value="20" oninput="document.getElementById('nodeVal').textContent=this.value;resetNetwork()">
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Network Status</h2>
+      <div class="stats-row">
+        <div class="mini-stat"><div class="val" id="statNodes">20</div><div class="lbl">Nodes</div></div>
+        <div class="mini-stat"><div class="val" id="statEdges">0</div><div class="lbl">Connections</div></div>
+        <div class="mini-stat"><div class="val" id="statBlocks">0</div><div class="lbl">Blocks</div></div>
+        <div class="mini-stat"><div class="val" id="statForks">0</div><div class="lbl">Forks</div></div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="dot" style="background:#22c55e"></div>Idle</div>
+        <div class="legend-item"><div class="dot" style="background:#f59e0b"></div>TX Gossip</div>
+        <div class="legend-item"><div class="dot" style="background:#3b82f6"></div>Block Prop</div>
+        <div class="legend-item"><div class="dot" style="background:#ef4444"></div>Eclipsed</div>
+        <div class="legend-item"><div class="dot" style="background:#a855f7"></div>Forked</div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Event Log</h2>
+      <div class="info-box" id="eventLog"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('netCanvas');
+const ctx = canvas.getContext('2d');
+let nodes = [], edges = [], messages = [], blockHeight = 0, forkCount = 0;
+let partitioned = false, partitionLine = null;
+let animFrame;
+
+function resize() {
+  canvas.width = canvas.offsetWidth * 2;
+  canvas.height = canvas.offsetHeight * 2;
+}
+resize();
+window.addEventListener('resize', resize);
+
+function resetNetwork() {
+  const count = parseInt(document.getElementById('nodeCount').value);
+  nodes = [];
+  edges = [];
+  messages = [];
+  blockHeight = 0;
+  forkCount = 0;
+  partitioned = false;
+  partitionLine = null;
+
+  const w = canvas.width / 2, h = canvas.height / 2;
+  for (let i = 0; i < count; i++) {
+    nodes.push({
+      id: i,
+      x: 60 + Math.random() * (w - 120),
+      y: 60 + Math.random() * (h - 120),
+      state: 'idle', // idle, tx, block, eclipsed, forked
+      chain: [0],
+      eclipsed: false,
+      stateTimer: 0
+    });
+  }
+
+  // Create random connections (each node connects to 2-4 peers)
+  for (let i = 0; i < nodes.length; i++) {
+    const peers = 2 + Math.floor(Math.random() * 3);
+    const distances = nodes.map((n, j) => ({ j, d: j === i ? Infinity : Math.hypot(n.x - nodes[i].x, n.y - nodes[i].y) }))
+      .sort((a, b) => a.d - b.d);
+    for (let p = 0; p < peers && p < distances.length; p++) {
+      const j = distances[p].j;
+      if (!edges.find(e => (e[0] === i && e[1] === j) || (e[0] === j && e[1] === i))) {
+        edges.push([i, j]);
+      }
+    }
+  }
+  updateStats();
+  logEvent('Network initialized with ' + count + ' nodes');
+}
+
+function getLatency() { return parseInt(document.getElementById('latency').value); }
+
+function broadcastTx(sourceId) {
+  const src = sourceId !== undefined ? sourceId : Math.floor(Math.random() * nodes.length);
+  if (nodes[src].eclipsed) { logEvent(`Node ${src} is eclipsed, TX stuck`); return; }
+  nodes[src].state = 'tx';
+  nodes[src].stateTimer = Date.now() + 1000;
+  propagate(src, 'tx');
+  logEvent(`TX broadcast from node ${src}`);
+}
+
+function mineBlock() {
+  const src = Math.floor(Math.random() * nodes.length);
+  blockHeight++;
+  nodes[src].chain.push(blockHeight);
+  nodes[src].state = 'block';
+  nodes[src].stateTimer = Date.now() + 2000;
+  propagate(src, 'block', { height: blockHeight });
+  logEvent(`Block #${blockHeight} mined by node ${src}`);
+  updateStats();
+}
+
+function propagate(src, type, data) {
+  const visited = new Set([src]);
+  const queue = [{ node: src, time: Date.now() }];
+
+  function step() {
+    if (queue.length === 0) return;
+    const next = [];
+    for (const item of queue) {
+      const neighbors = getNeighbors(item.node);
+      for (const n of neighbors) {
+        if (visited.has(n) || nodes[n].eclipsed) continue;
+        if (partitioned && isPartitioned(nodes[item.node], nodes[n])) continue;
+        visited.add(n);
+        const delay = getLatency() + Math.random() * 100;
+        messages.push({
+          from: item.node, to: n, type,
+          startTime: Date.now(), duration: delay,
+          progress: 0
+        });
+        next.push({ node: n, time: Date.now() + delay });
+        setTimeout(() => {
+          nodes[n].state = type;
+          nodes[n].stateTimer = Date.now() + 1000;
+          if (type === 'block' && data) {
+            if (!nodes[n].chain.includes(data.height)) nodes[n].chain.push(data.height);
+          }
+        }, delay);
+      }
+    }
+    if (next.length > 0) setTimeout(() => { queue.length = 0; queue.push(...next); step(); }, getLatency());
+  }
+  step();
+}
+
+function getNeighbors(nodeId) {
+  return edges.filter(e => e[0] === nodeId || e[1] === nodeId)
+    .map(e => e[0] === nodeId ? e[1] : e[0]);
+}
+
+function isPartitioned(a, b) {
+  if (!partitionLine) return false;
+  const sideA = (a.x - partitionLine.x) * partitionLine.ny - (a.y - partitionLine.y) * partitionLine.nx;
+  const sideB = (b.x - partitionLine.x) * partitionLine.ny - (b.y - partitionLine.y) * partitionLine.nx;
+  return (sideA > 0) !== (sideB > 0);
+}
+
+function partitionNetwork() {
+  const w = canvas.width / 4, h = canvas.height / 4;
+  partitionLine = { x: w / 2, y: 0, nx: 0, ny: 1 }; // vertical split
+  partitioned = true;
+  forkCount++;
+  // Mark nodes on right side as forked
+  nodes.forEach(n => {
+    if (n.x > w / 2) n.state = 'forked';
+  });
+  logEvent('Network partitioned! Forks may form.');
+  updateStats();
+}
+
+function reconnectNetwork() {
+  partitioned = false;
+  partitionLine = null;
+  // Longest chain wins - resolve forks
+  const maxChain = Math.max(...nodes.map(n => n.chain.length));
+  const canonical = nodes.find(n => n.chain.length === maxChain).chain.slice();
+  nodes.forEach(n => { n.chain = canonical.slice(); n.state = 'idle'; });
+  logEvent('Network reconnected. Longest chain wins (length: ' + maxChain + ')');
+  updateStats();
+}
+
+function eclipseAttack() {
+  const target = Math.floor(Math.random() * nodes.length);
+  nodes[target].eclipsed = true;
+  nodes[target].state = 'eclipsed';
+  // Remove edges to target
+  edges = edges.filter(e => e[0] !== target && e[1] !== target);
+  logEvent(`Eclipse attack on node ${target}! Isolated from honest peers.`);
+  updateStats();
+}
+
+function draw() {
+  const scale = 2;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  const w = canvas.width / scale, h = canvas.height / scale;
+  ctx.clearRect(0, 0, w, h);
+
+  // Partition line
+  if (partitioned && partitionLine) {
+    ctx.strokeStyle = '#ef444488';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 4]);
+    ctx.beginPath();
+    ctx.moveTo(w / 2, 0);
+    ctx.lineTo(w / 2, h);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Edges
+  ctx.lineWidth = 1;
+  for (const [a, b] of edges) {
+    ctx.strokeStyle = '#333';
+    ctx.beginPath();
+    ctx.moveTo(nodes[a].x, nodes[a].y);
+    ctx.lineTo(nodes[b].x, nodes[b].y);
+    ctx.stroke();
+  }
+
+  // Messages in transit
+  const now = Date.now();
+  messages = messages.filter(m => {
+    const progress = (now - m.startTime) / m.duration;
+    if (progress > 1) return false;
+    const x = nodes[m.from].x + (nodes[m.to].x - nodes[m.from].x) * progress;
+    const y = nodes[m.from].y + (nodes[m.to].y - nodes[m.from].y) * progress;
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = m.type === 'tx' ? '#f59e0b' : '#3b82f6';
+    ctx.fill();
+    return true;
+  });
+
+  // Nodes
+  for (const node of nodes) {
+    if (node.stateTimer && now > node.stateTimer) { node.state = node.eclipsed ? 'eclipsed' : 'idle'; }
+    const colors = { idle: '#22c55e', tx: '#f59e0b', block: '#3b82f6', eclipsed: '#ef4444', forked: '#a855f7' };
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, 10, 0, Math.PI * 2);
+    ctx.fillStyle = colors[node.state] || '#22c55e';
+    ctx.fill();
+    ctx.strokeStyle = '#0a0a0a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = '#fafafa';
+    ctx.font = '9px Manrope';
+    ctx.textAlign = 'center';
+    ctx.fillText(node.id, node.x, node.y + 3);
+  }
+
+  animFrame = requestAnimationFrame(draw);
+}
+
+function updateStats() {
+  document.getElementById('statNodes').textContent = nodes.length;
+  document.getElementById('statEdges').textContent = edges.length;
+  document.getElementById('statBlocks').textContent = blockHeight;
+  document.getElementById('statForks').textContent = forkCount;
+}
+
+function logEvent(msg) {
+  const log = document.getElementById('eventLog');
+  log.innerHTML = `<div>${msg}</div>` + log.innerHTML;
+  if (log.children.length > 30) log.removeChild(log.lastChild);
+}
+
+// Click on node to broadcast TX
+canvas.addEventListener('click', function(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (canvas.width / rect.width) / 2;
+  const y = (e.clientY - rect.top) * (canvas.height / rect.height) / 2;
+  for (const node of nodes) {
+    if (Math.hypot(node.x - x, node.y - y) < 15) {
+      broadcastTx(node.id);
+      return;
+    }
+  }
+});
+
+resetNetwork();
+draw();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

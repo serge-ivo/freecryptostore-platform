@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeFi Yield Farming Simulator - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; min-height: 100vh; padding: 20px; }
+a.back { position: fixed; top: 20px; left: 20px; color: #f59e0b; text-decoration: none; font-weight: 600; z-index: 100; }
+a.back:hover { text-decoration: underline; }
+h1 { text-align: center; margin: 40px 0 10px; font-size: 1.8rem; color: #f59e0b; }
+.subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+.layout { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.pools-section { grid-column: 1 / -1; }
+.pool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.pool-card { background: #111; border: 1px solid #222; border-radius: 12px; padding: 18px; transition: border-color 0.2s; }
+.pool-card:hover { border-color: #333; }
+.pool-card h3 { font-size: 0.95rem; margin-bottom: 4px; }
+.pool-card .apy { color: #22c55e; font-size: 1.3rem; font-weight: 700; }
+.pool-card .risk { font-size: 0.75rem; margin: 6px 0; padding: 3px 8px; border-radius: 4px; display: inline-block; }
+.risk-low { background: #052e16; color: #22c55e; }
+.risk-med { background: #1a1500; color: #f59e0b; }
+.risk-high { background: #1a0a0a; color: #ef4444; }
+.pool-card .staked { color: #888; font-size: 0.8rem; margin: 8px 0; }
+.pool-card .rewards { color: #f59e0b; font-size: 0.85rem; font-weight: 600; }
+.pool-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.pool-actions button { font-size: 0.75rem; padding: 6px 10px; }
+button { background: #1a1a1a; border: 1px solid #333; color: #fafafa; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-family: inherit; font-weight: 500; transition: all 0.2s; }
+button:hover { border-color: #f59e0b; color: #f59e0b; }
+button.primary { background: #f59e0b; color: #0a0a0a; border-color: #f59e0b; }
+.portfolio { background: #111; border: 1px solid #222; border-radius: 12px; padding: 20px; }
+.portfolio h3 { color: #f59e0b; margin-bottom: 12px; }
+.port-stat { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1a1a1a; font-size: 0.85rem; }
+.port-stat .label { color: #888; }
+.port-stat .value { font-weight: 600; }
+.chart-container { background: #111; border: 1px solid #222; border-radius: 12px; padding: 20px; }
+.chart-container h3 { color: #f59e0b; margin-bottom: 12px; }
+canvas { width: 100%; height: 200px; }
+.gas-panel { grid-column: 1 / -1; background: #111; border: 1px solid #222; border-radius: 12px; padding: 18px; }
+.gas-panel h3 { color: #f59e0b; margin-bottom: 10px; }
+.gas-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.gas-row label { color: #888; font-size: 0.85rem; }
+input[type="range"] { flex: 1; min-width: 150px; accent-color: #f59e0b; }
+.gas-info { font-size: 0.85rem; color: #aaa; }
+.controls-top { display: flex; justify-content: center; gap: 12px; margin-bottom: 20px; }
+.wallet { text-align: center; margin-bottom: 20px; background: #111; border: 1px solid #222; border-radius: 12px; padding: 14px; max-width: 400px; margin-left: auto; margin-right: auto; }
+.wallet .balance { font-size: 1.5rem; font-weight: 700; color: #f59e0b; }
+.wallet .label { color: #888; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>DeFi Yield Farming Simulator</h1>
+<p class="subtitle">Stake tokens, earn rewards, and manage impermanent loss risk</p>
+
+<div class="wallet">
+  <div class="label">Wallet Balance</div>
+  <div class="balance" id="walletBalance">10,000.00 USDC</div>
+</div>
+
+<div class="controls-top">
+  <button class="primary" onclick="toggleSim();" id="btnSim">Start Simulation</button>
+  <button onclick="speedUp()">2x Speed</button>
+  <button onclick="resetSim()">Reset</button>
+</div>
+
+<div class="layout">
+  <div class="pools-section">
+    <div class="pool-grid" id="poolGrid"></div>
+  </div>
+
+  <div class="portfolio">
+    <h3>Portfolio Summary</h3>
+    <div class="port-stat"><span class="label">Total Staked</span><span class="value" id="totalStaked">$0.00</span></div>
+    <div class="port-stat"><span class="label">Total Rewards</span><span class="value" id="totalRewards">$0.00</span></div>
+    <div class="port-stat"><span class="label">Impermanent Loss</span><span class="value" id="totalIL">$0.00</span></div>
+    <div class="port-stat"><span class="label">Net Profit</span><span class="value" id="netProfit">$0.00</span></div>
+    <div class="port-stat"><span class="label">Elapsed Time</span><span class="value" id="elapsed">0 days</span></div>
+  </div>
+
+  <div class="chart-container">
+    <h3>Portfolio Value Over Time</h3>
+    <canvas id="chart" height="200"></canvas>
+  </div>
+
+  <div class="gas-panel">
+    <h3>Gas Price Consideration</h3>
+    <div class="gas-row">
+      <label>Gas Price: <span id="gasVal">30</span> gwei</label>
+      <input type="range" min="5" max="200" value="30" id="gasSlider" oninput="updateGas()">
+      <span class="gas-info" id="gasInfo">Compound cost: $2.40 | Worth compounding above $48.00 staked</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const pools = [
+  { name: 'USDC-USDT Stable', apy: 5.2, risk: 'low', riskLabel: 'Low Risk', ilFactor: 0.001 },
+  { name: 'ETH-USDC', apy: 18.5, risk: 'med', riskLabel: 'Medium Risk', ilFactor: 0.03 },
+  { name: 'BTC-ETH', apy: 12.8, risk: 'med', riskLabel: 'Medium Risk', ilFactor: 0.02 },
+  { name: 'SOL-USDC', apy: 35.0, risk: 'high', riskLabel: 'High Risk', ilFactor: 0.06 },
+  { name: 'DEGEN-ETH', apy: 120.0, risk: 'high', riskLabel: 'High Risk', ilFactor: 0.15 },
+  { name: 'MATIC-ETH', apy: 22.0, risk: 'med', riskLabel: 'Medium Risk', ilFactor: 0.025 }
+];
+
+let state = {
+  wallet: 10000,
+  staked: pools.map(() => 0),
+  rewards: pools.map(() => 0),
+  il: pools.map(() => 0),
+  running: false,
+  speed: 1,
+  days: 0,
+  history: [],
+  timer: null,
+  gasGwei: 30
+};
+
+function fmt(n) { return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+function renderPools() {
+  const grid = document.getElementById('poolGrid');
+  grid.innerHTML = pools.map((p, i) => `
+    <div class="pool-card">
+      <h3>${p.name}</h3>
+      <div class="apy">${p.apy}% APY</div>
+      <div class="risk risk-${p.risk}">${p.riskLabel}</div>
+      <div class="staked">Staked: $${fmt(state.staked[i])}</div>
+      <div class="rewards">Rewards: $${fmt(state.rewards[i])}</div>
+      <div class="pool-actions">
+        <button onclick="stake(${i}, 500)">Stake $500</button>
+        <button onclick="harvest(${i})">Harvest</button>
+        <button onclick="compound(${i})">Compound</button>
+        <button onclick="withdraw(${i})">Withdraw</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function stake(i, amount) {
+  if (state.wallet < amount) return;
+  state.wallet -= amount;
+  state.staked[i] += amount;
+  updateUI();
+}
+
+function harvest(i) {
+  const r = state.rewards[i];
+  state.wallet += r;
+  state.rewards[i] = 0;
+  updateUI();
+}
+
+function compound(i) {
+  const gasCost = (state.gasGwei * 21000 * 1e-9) * 2000; // approx USD
+  if (state.rewards[i] <= gasCost) return;
+  state.staked[i] += state.rewards[i] - gasCost;
+  state.rewards[i] = 0;
+  state.wallet -= gasCost;
+  updateUI();
+}
+
+function withdraw(i) {
+  const net = state.staked[i] - state.il[i] + state.rewards[i];
+  state.wallet += Math.max(0, net);
+  state.staked[i] = 0; state.rewards[i] = 0; state.il[i] = 0;
+  updateUI();
+}
+
+function tick() {
+  state.days += state.speed;
+  pools.forEach((p, i) => {
+    if (state.staked[i] <= 0) return;
+    const dailyRate = p.apy / 100 / 365;
+    state.rewards[i] += state.staked[i] * dailyRate * state.speed;
+    // Impermanent loss accumulates randomly
+    const ilDelta = state.staked[i] * p.ilFactor * (Math.random() - 0.3) * state.speed / 365;
+    state.il[i] = Math.max(0, state.il[i] + ilDelta);
+  });
+  const totalValue = state.wallet + state.staked.reduce((a, b) => a + b, 0) + state.rewards.reduce((a, b) => a + b, 0) - state.il.reduce((a, b) => a + b, 0);
+  state.history.push(totalValue);
+  if (state.history.length > 365) state.history.shift();
+  updateUI();
+  drawChart();
+}
+
+function toggleSim() {
+  state.running = !state.running;
+  document.getElementById('btnSim').textContent = state.running ? 'Pause' : 'Start Simulation';
+  document.getElementById('btnSim').classList.toggle('primary', !state.running);
+  if (state.running) {
+    state.timer = setInterval(tick, 500);
+  } else {
+    clearInterval(state.timer);
+  }
+}
+
+function speedUp() {
+  state.speed = state.speed >= 8 ? 1 : state.speed * 2;
+  event.target.textContent = state.speed + 'x Speed';
+}
+
+function resetSim() {
+  if (state.running) toggleSim();
+  state = { wallet: 10000, staked: pools.map(() => 0), rewards: pools.map(() => 0), il: pools.map(() => 0), running: false, speed: 1, days: 0, history: [], timer: null, gasGwei: state.gasGwei };
+  updateUI(); drawChart();
+}
+
+function updateGas() {
+  state.gasGwei = parseInt(document.getElementById('gasSlider').value);
+  document.getElementById('gasVal').textContent = state.gasGwei;
+  const cost = (state.gasGwei * 21000 * 1e-9) * 2000;
+  const worthAbove = cost * 20;
+  document.getElementById('gasInfo').textContent = `Compound cost: $${fmt(cost)} | Worth compounding above $${fmt(worthAbove)} staked`;
+}
+
+function updateUI() {
+  document.getElementById('walletBalance').textContent = fmt(state.wallet) + ' USDC';
+  document.getElementById('totalStaked').textContent = '$' + fmt(state.staked.reduce((a, b) => a + b, 0));
+  document.getElementById('totalRewards').textContent = '$' + fmt(state.rewards.reduce((a, b) => a + b, 0));
+  document.getElementById('totalIL').textContent = '-$' + fmt(state.il.reduce((a, b) => a + b, 0));
+  const net = state.staked.reduce((a, b) => a + b, 0) + state.rewards.reduce((a, b) => a + b, 0) - state.il.reduce((a, b) => a + b, 0) + state.wallet - 10000;
+  document.getElementById('netProfit').textContent = (net >= 0 ? '+$' : '-$') + fmt(Math.abs(net));
+  document.getElementById('netProfit').style.color = net >= 0 ? '#22c55e' : '#ef4444';
+  document.getElementById('elapsed').textContent = Math.floor(state.days) + ' days';
+  renderPools();
+}
+
+function drawChart() {
+  const canvas = document.getElementById('chart');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width = canvas.offsetWidth * 2;
+  const h = canvas.height = 400;
+  ctx.clearRect(0, 0, w, h);
+
+  if (state.history.length < 2) return;
+  const min = Math.min(...state.history) * 0.98;
+  const max = Math.max(...state.history) * 1.02;
+  const range = max - min || 1;
+
+  ctx.beginPath();
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 2;
+  state.history.forEach((v, i) => {
+    const x = (i / (state.history.length - 1)) * w;
+    const y = h - ((v - min) / range) * (h - 40) - 20;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Baseline
+  const baseY = h - ((10000 - min) / range) * (h - 40) - 20;
+  ctx.beginPath(); ctx.setLineDash([4, 4]); ctx.strokeStyle = '#444'; ctx.lineWidth = 1;
+  ctx.moveTo(0, baseY); ctx.lineTo(w, baseY); ctx.stroke(); ctx.setLineDash([]);
+}
+
+renderPools();
+updateGas();
+updateUI();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

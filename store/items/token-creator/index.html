@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Token Economics Designer - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; min-height: 100vh; padding: 20px; }
+a.back { position: fixed; top: 20px; left: 20px; color: #f59e0b; text-decoration: none; font-weight: 600; z-index: 100; }
+a.back:hover { text-decoration: underline; }
+h1 { text-align: center; margin: 40px 0 10px; font-size: 1.8rem; color: #f59e0b; }
+.subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+.container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 340px 1fr; gap: 20px; }
+.panel { background: #141414; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+.panel h2 { font-size: 0.95rem; color: #f59e0b; margin-bottom: 12px; }
+.form-group { margin: 10px 0; }
+.form-group label { display: block; font-size: 0.75rem; color: #888; margin-bottom: 4px; }
+.form-group input, .form-group select { width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fafafa; padding: 8px 12px; font-family: inherit; font-size: 0.85rem; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: #f59e0b; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.btn { background: #f59e0b; color: #0a0a0a; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; font-family: inherit; font-size: 0.8rem; margin: 4px 0; }
+.btn:hover { background: #d97706; }
+.btn.secondary { background: #333; color: #fafafa; }
+.btn.secondary:hover { background: #444; }
+.btn.full { width: 100%; }
+.toggle { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.toggle input[type="checkbox"] { accent-color: #f59e0b; }
+.toggle label { font-size: 0.8rem; color: #ccc; }
+canvas { width: 100%; height: 220px; border-radius: 8px; background: #1a1a1a; display: block; margin-top: 12px; }
+.tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+.tabs .tab { padding: 6px 12px; border-radius: 6px; background: #1a1a1a; color: #888; cursor: pointer; font-size: 0.8rem; border: 1px solid #2a2a2a; }
+.tabs .tab.active { background: #f59e0b22; color: #f59e0b; border-color: #f59e0b; }
+.token-badge { background: #1a1a1a; border: 1px solid #f59e0b33; border-radius: 10px; padding: 16px; text-align: center; margin-bottom: 16px; }
+.token-badge .symbol { font-size: 2rem; font-weight: 700; color: #f59e0b; }
+.token-badge .name { font-size: 0.85rem; color: #888; }
+.token-badge .supply { font-size: 1.1rem; margin-top: 6px; }
+.address-list { margin-top: 12px; }
+.address-item { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px; padding: 8px 12px; margin: 4px 0; display: flex; justify-content: space-between; font-size: 0.8rem; }
+.address-item .addr { color: #60a5fa; font-family: monospace; }
+.address-item .bal { color: #f59e0b; font-weight: 600; }
+.chart-section { margin-top: 16px; }
+.chart-section h3 { font-size: 0.85rem; color: #888; margin-bottom: 8px; }
+.markers { position: relative; }
+.marker { position: absolute; width: 8px; height: 8px; border-radius: 50%; transform: translate(-50%, -50%); }
+.marker.buy { background: #22c55e; }
+.marker.sell { background: #ef4444; }
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Token Economics Designer</h1>
+<p class="subtitle">Design token supply, distribution, and bonding curves</p>
+
+<div class="container">
+  <div>
+    <div class="panel">
+      <h2>Token Configuration</h2>
+      <div class="form-group"><label>Token Name</label><input type="text" id="tokenName" value="CryptoToken" oninput="updateBadge()"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Symbol</label><input type="text" id="tokenSymbol" value="CTK" maxlength="5" oninput="updateBadge()"></div>
+        <div class="form-group"><label>Decimals</label><input type="number" id="tokenDecimals" value="18" min="0" max="18"></div>
+      </div>
+      <div class="form-group"><label>Total Supply</label><input type="number" id="totalSupply" value="1000000" min="1" oninput="updateBadge()"></div>
+      <div class="form-group"><label>Max Supply (0 = unlimited)</label><input type="number" id="maxSupply" value="10000000" min="0"></div>
+      <div class="toggle"><input type="checkbox" id="mintable" checked><label for="mintable">Mint Authority</label></div>
+      <div class="toggle"><input type="checkbox" id="burnable" checked><label for="burnable">Burn Capability</label></div>
+    </div>
+
+    <div class="panel">
+      <h2>Transfer Simulator</h2>
+      <div class="form-row">
+        <div class="form-group"><label>From</label><select id="fromAddr"><option>0x001</option><option>0x002</option><option>0x003</option></select></div>
+        <div class="form-group"><label>To</label><select id="toAddr"><option>0x002</option><option>0x003</option><option>0x001</option></select></div>
+      </div>
+      <div class="form-group"><label>Amount</label><input type="number" id="transferAmt" value="1000" min="1"></div>
+      <button class="btn full" onclick="transfer()">Transfer</button>
+      <button class="btn secondary full" onclick="mint()">Mint New Tokens</button>
+      <button class="btn secondary full" onclick="burn()">Burn Tokens</button>
+      <div class="address-list" id="addressList"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="token-badge" id="tokenBadge">
+      <div class="symbol">CTK</div>
+      <div class="name">CryptoToken</div>
+      <div class="supply">Supply: 1,000,000</div>
+    </div>
+
+    <div class="panel">
+      <div class="tabs">
+        <div class="tab active" onclick="switchView('supply')">Supply Curve</div>
+        <div class="tab" onclick="switchView('inflation')">Inflation</div>
+        <div class="tab" onclick="switchView('bonding')">Bonding Curve</div>
+      </div>
+
+      <div id="supplyView">
+        <h2>Supply Emission Schedule</h2>
+        <div class="form-group">
+          <label>Emission Model</label>
+          <select id="emissionModel" onchange="drawSupplyCurve()">
+            <option value="linear">Linear</option>
+            <option value="logarithmic">Logarithmic</option>
+            <option value="halving" selected>Halving (Bitcoin-like)</option>
+          </select>
+        </div>
+        <canvas id="supplyCanvas" height="220"></canvas>
+      </div>
+
+      <div id="inflationView" style="display:none">
+        <h2>Inflation / Deflation Over Time</h2>
+        <div class="form-row">
+          <div class="form-group"><label>Annual Inflation %</label><input type="number" id="inflationRate" value="5" step="0.5" oninput="drawInflation()"></div>
+          <div class="form-group"><label>Annual Burn %</label><input type="number" id="burnRate" value="2" step="0.5" oninput="drawInflation()"></div>
+        </div>
+        <canvas id="inflationCanvas" height="220"></canvas>
+      </div>
+
+      <div id="bondingView" style="display:none">
+        <h2>Bonding Curve (Price vs Supply)</h2>
+        <div class="form-group">
+          <label>Curve Type</label>
+          <select id="bondingType" onchange="drawBonding()">
+            <option value="linear">Linear (price = m * supply)</option>
+            <option value="quadratic">Quadratic (price = supply^2 / k)</option>
+            <option value="sigmoid">Sigmoid (S-curve)</option>
+          </select>
+        </div>
+        <canvas id="bondingCanvas" height="220"></canvas>
+        <div class="form-row" style="margin-top:12px">
+          <button class="btn" onclick="bondingBuy()">Buy (move right)</button>
+          <button class="btn secondary" onclick="bondingSell()">Sell (move left)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let balances = { '0x001': 500000, '0x002': 300000, '0x003': 200000 };
+let currentSupply = 1000000;
+let bondingPosition = 500000; // current supply position on bonding curve
+let bondingTrades = [];
+
+function updateBadge() {
+  const badge = document.getElementById('tokenBadge');
+  badge.innerHTML = `
+    <div class="symbol">${document.getElementById('tokenSymbol').value}</div>
+    <div class="name">${document.getElementById('tokenName').value}</div>
+    <div class="supply">Supply: ${currentSupply.toLocaleString()}</div>
+  `;
+}
+
+function renderAddresses() {
+  const list = document.getElementById('addressList');
+  list.innerHTML = Object.entries(balances).map(([addr, bal]) =>
+    `<div class="address-item"><span class="addr">${addr}</span><span class="bal">${bal.toLocaleString()} ${document.getElementById('tokenSymbol').value}</span></div>`
+  ).join('');
+}
+
+function transfer() {
+  const from = document.getElementById('fromAddr').value;
+  const to = document.getElementById('toAddr').value;
+  const amt = parseInt(document.getElementById('transferAmt').value);
+  if (from === to) return;
+  if (balances[from] < amt) { alert('Insufficient balance'); return; }
+  balances[from] -= amt;
+  balances[to] += amt;
+  renderAddresses();
+}
+
+function mint() {
+  if (!document.getElementById('mintable').checked) { alert('Minting disabled'); return; }
+  const amt = parseInt(document.getElementById('transferAmt').value);
+  const maxSup = parseInt(document.getElementById('maxSupply').value);
+  if (maxSup > 0 && currentSupply + amt > maxSup) { alert('Would exceed max supply'); return; }
+  const to = document.getElementById('toAddr').value;
+  balances[to] += amt;
+  currentSupply += amt;
+  updateBadge();
+  renderAddresses();
+}
+
+function burn() {
+  if (!document.getElementById('burnable').checked) { alert('Burning disabled'); return; }
+  const from = document.getElementById('fromAddr').value;
+  const amt = parseInt(document.getElementById('transferAmt').value);
+  if (balances[from] < amt) { alert('Insufficient balance'); return; }
+  balances[from] -= amt;
+  currentSupply -= amt;
+  updateBadge();
+  renderAddresses();
+}
+
+function switchView(view) {
+  document.querySelectorAll('.tabs .tab').forEach((t, i) => {
+    t.classList.toggle('active', (view === 'supply' && i === 0) || (view === 'inflation' && i === 1) || (view === 'bonding' && i === 2));
+  });
+  document.getElementById('supplyView').style.display = view === 'supply' ? 'block' : 'none';
+  document.getElementById('inflationView').style.display = view === 'inflation' ? 'block' : 'none';
+  document.getElementById('bondingView').style.display = view === 'bonding' ? 'block' : 'none';
+  if (view === 'supply') drawSupplyCurve();
+  if (view === 'inflation') drawInflation();
+  if (view === 'bonding') drawBonding();
+}
+
+function drawSupplyCurve() {
+  const canvas = document.getElementById('supplyCanvas');
+  const ctx2 = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * 2;
+  canvas.height = 440;
+  ctx2.scale(2, 2);
+  const w = canvas.offsetWidth, h = 220;
+  ctx2.clearRect(0, 0, w, h);
+  ctx2.fillStyle = '#1a1a1a';
+  ctx2.fillRect(0, 0, w, h);
+
+  const model = document.getElementById('emissionModel').value;
+  const maxSup = parseInt(document.getElementById('maxSupply').value) || parseInt(document.getElementById('totalSupply').value) * 10;
+  const pad = 40;
+  const years = 20;
+
+  // Axes
+  ctx2.strokeStyle = '#333';
+  ctx2.lineWidth = 1;
+  ctx2.beginPath();
+  ctx2.moveTo(pad, h - pad);
+  ctx2.lineTo(w - 10, h - pad);
+  ctx2.moveTo(pad, h - pad);
+  ctx2.lineTo(pad, 10);
+  ctx2.stroke();
+
+  ctx2.fillStyle = '#666';
+  ctx2.font = '10px Manrope';
+  ctx2.fillText('Years', w / 2, h - 5);
+  ctx2.fillText('0', pad - 5, h - pad + 14);
+  ctx2.fillText(years.toString(), w - 20, h - pad + 14);
+
+  // Supply curve
+  ctx2.strokeStyle = '#f59e0b';
+  ctx2.lineWidth = 2;
+  ctx2.beginPath();
+
+  const initSupply = parseInt(document.getElementById('totalSupply').value);
+  for (let px = pad; px < w - 10; px++) {
+    const t = ((px - pad) / (w - pad - 10)) * years;
+    let supply;
+    if (model === 'linear') {
+      supply = initSupply + (maxSup - initSupply) * (t / years);
+    } else if (model === 'logarithmic') {
+      supply = initSupply + (maxSup - initSupply) * (Math.log(t + 1) / Math.log(years + 1));
+    } else { // halving
+      let s = initSupply, reward = initSupply * 0.1;
+      for (let y = 0; y < t; y++) {
+        if (y > 0 && y % 4 === 0) reward /= 2;
+        s += reward;
+      }
+      supply = Math.min(s, maxSup);
+    }
+    const py = h - pad - ((supply / maxSup) * (h - pad - 10));
+    if (px === pad) ctx2.moveTo(px, py);
+    else ctx2.lineTo(px, py);
+  }
+  ctx2.stroke();
+
+  // Max supply line
+  ctx2.strokeStyle = '#ef444466';
+  ctx2.setLineDash([4, 4]);
+  ctx2.beginPath();
+  ctx2.moveTo(pad, 10);
+  ctx2.lineTo(w - 10, 10);
+  ctx2.stroke();
+  ctx2.setLineDash([]);
+  ctx2.fillStyle = '#ef4444';
+  ctx2.fillText('Max: ' + maxSup.toLocaleString(), pad + 5, 20);
+}
+
+function drawInflation() {
+  const canvas = document.getElementById('inflationCanvas');
+  const ctx2 = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * 2;
+  canvas.height = 440;
+  ctx2.scale(2, 2);
+  const w = canvas.offsetWidth, h = 220;
+  ctx2.clearRect(0, 0, w, h);
+  ctx2.fillStyle = '#1a1a1a';
+  ctx2.fillRect(0, 0, w, h);
+
+  const infRate = parseFloat(document.getElementById('inflationRate').value) / 100;
+  const burnR = parseFloat(document.getElementById('burnRate').value) / 100;
+  const pad = 40;
+  const years = 20;
+  const initSupply = parseInt(document.getElementById('totalSupply').value);
+
+  ctx2.strokeStyle = '#333';
+  ctx2.lineWidth = 1;
+  ctx2.beginPath();
+  ctx2.moveTo(pad, h - pad);
+  ctx2.lineTo(w - 10, h - pad);
+  ctx2.moveTo(pad, h - pad);
+  ctx2.lineTo(pad, 10);
+  ctx2.stroke();
+
+  // Calculate max for scaling
+  let maxVal = initSupply;
+  let s = initSupply;
+  for (let y = 0; y < years; y++) { s = s * (1 + infRate - burnR); maxVal = Math.max(maxVal, s); }
+  maxVal *= 1.2;
+
+  // Inflation line (green)
+  ctx2.strokeStyle = '#22c55e';
+  ctx2.lineWidth = 2;
+  ctx2.beginPath();
+  s = initSupply;
+  for (let px = pad; px < w - 10; px++) {
+    const t = ((px - pad) / (w - pad - 10)) * years;
+    const supply = initSupply * Math.pow(1 + infRate, t);
+    const py = h - pad - ((supply / maxVal) * (h - pad - 10));
+    if (px === pad) ctx2.moveTo(px, py); else ctx2.lineTo(px, py);
+  }
+  ctx2.stroke();
+
+  // Net supply (amber)
+  ctx2.strokeStyle = '#f59e0b';
+  ctx2.lineWidth = 2;
+  ctx2.beginPath();
+  for (let px = pad; px < w - 10; px++) {
+    const t = ((px - pad) / (w - pad - 10)) * years;
+    const supply = initSupply * Math.pow(1 + infRate - burnR, t);
+    const py = h - pad - ((supply / maxVal) * (h - pad - 10));
+    if (px === pad) ctx2.moveTo(px, py); else ctx2.lineTo(px, py);
+  }
+  ctx2.stroke();
+
+  // Burn-only line (red)
+  ctx2.strokeStyle = '#ef4444';
+  ctx2.lineWidth = 1;
+  ctx2.setLineDash([4, 4]);
+  ctx2.beginPath();
+  for (let px = pad; px < w - 10; px++) {
+    const t = ((px - pad) / (w - pad - 10)) * years;
+    const supply = initSupply * Math.pow(1 - burnR, t);
+    const py = h - pad - ((supply / maxVal) * (h - pad - 10));
+    if (px === pad) ctx2.moveTo(px, py); else ctx2.lineTo(px, py);
+  }
+  ctx2.stroke();
+  ctx2.setLineDash([]);
+
+  ctx2.fillStyle = '#22c55e'; ctx2.fillText('Inflation only', w - 100, 20);
+  ctx2.fillStyle = '#f59e0b'; ctx2.fillText('Net (inf - burn)', w - 100, 35);
+  ctx2.fillStyle = '#ef4444'; ctx2.fillText('Burn only', w - 100, 50);
+}
+
+function drawBonding() {
+  const canvas = document.getElementById('bondingCanvas');
+  const ctx2 = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * 2;
+  canvas.height = 440;
+  ctx2.scale(2, 2);
+  const w = canvas.offsetWidth, h = 220;
+  ctx2.clearRect(0, 0, w, h);
+  ctx2.fillStyle = '#1a1a1a';
+  ctx2.fillRect(0, 0, w, h);
+
+  const type = document.getElementById('bondingType').value;
+  const pad = 40;
+  const maxSup = parseInt(document.getElementById('maxSupply').value) || 10000000;
+
+  ctx2.strokeStyle = '#333';
+  ctx2.lineWidth = 1;
+  ctx2.beginPath();
+  ctx2.moveTo(pad, h - pad);
+  ctx2.lineTo(w - 10, h - pad);
+  ctx2.moveTo(pad, h - pad);
+  ctx2.lineTo(pad, 10);
+  ctx2.stroke();
+
+  ctx2.fillStyle = '#666';
+  ctx2.font = '10px Manrope';
+  ctx2.fillText('Supply', w / 2, h - 5);
+  ctx2.fillText('Price', 5, h / 2);
+
+  function getPrice(supply) {
+    const s = supply / maxSup;
+    if (type === 'linear') return s;
+    if (type === 'quadratic') return s * s;
+    return 1 / (1 + Math.exp(-10 * (s - 0.5)));
+  }
+
+  // Curve
+  ctx2.strokeStyle = '#f59e0b';
+  ctx2.lineWidth = 2;
+  ctx2.beginPath();
+  for (let px = pad; px < w - 10; px++) {
+    const supply = ((px - pad) / (w - pad - 10)) * maxSup;
+    const price = getPrice(supply);
+    const py = h - pad - (price * (h - pad - 10));
+    if (px === pad) ctx2.moveTo(px, py); else ctx2.lineTo(px, py);
+  }
+  ctx2.stroke();
+
+  // Current position
+  const cx = pad + (bondingPosition / maxSup) * (w - pad - 10);
+  const cy = h - pad - (getPrice(bondingPosition) * (h - pad - 10));
+  ctx2.beginPath();
+  ctx2.arc(cx, cy, 7, 0, Math.PI * 2);
+  ctx2.fillStyle = '#f59e0b';
+  ctx2.fill();
+  ctx2.fillStyle = '#fafafa';
+  ctx2.font = '9px Manrope';
+  ctx2.fillText(`Price: ${getPrice(bondingPosition).toFixed(4)}`, cx + 12, cy - 5);
+
+  // Trade markers
+  for (const trade of bondingTrades.slice(-20)) {
+    const tx = pad + (trade.supply / maxSup) * (w - pad - 10);
+    const ty = h - pad - (getPrice(trade.supply) * (h - pad - 10));
+    ctx2.beginPath();
+    ctx2.arc(tx, ty, 4, 0, Math.PI * 2);
+    ctx2.fillStyle = trade.type === 'buy' ? '#22c55e' : '#ef4444';
+    ctx2.fill();
+  }
+}
+
+function bondingBuy() {
+  const step = parseInt(document.getElementById('maxSupply').value || 10000000) * 0.02;
+  bondingPosition = Math.min(bondingPosition + step, parseInt(document.getElementById('maxSupply').value || 10000000));
+  bondingTrades.push({ supply: bondingPosition, type: 'buy' });
+  drawBonding();
+}
+
+function bondingSell() {
+  const step = parseInt(document.getElementById('maxSupply').value || 10000000) * 0.02;
+  bondingPosition = Math.max(bondingPosition - step, 0);
+  bondingTrades.push({ supply: bondingPosition, type: 'sell' });
+  drawBonding();
+}
+
+renderAddresses();
+drawSupplyCurve();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zero-Knowledge Proof Demo - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; min-height: 100vh; padding: 20px; }
+a.back { position: fixed; top: 20px; left: 20px; color: #f59e0b; text-decoration: none; font-weight: 600; z-index: 100; }
+a.back:hover { text-decoration: underline; }
+h1 { text-align: center; margin: 40px 0 10px; font-size: 1.8rem; color: #f59e0b; }
+.subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+.tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 30px; }
+.tab { background: #1a1a1a; border: 1px solid #333; color: #aaa; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-family: inherit; font-weight: 500; transition: all 0.2s; }
+.tab:hover { border-color: #f59e0b; color: #f59e0b; }
+.tab.active { background: #f59e0b; color: #0a0a0a; border-color: #f59e0b; }
+.demo-container { max-width: 800px; margin: 0 auto; }
+.section { display: none; }
+.section.active { display: block; }
+.cave-scene { background: #111; border: 1px solid #222; border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 20px; }
+.cave-svg { max-width: 400px; margin: 0 auto 20px; }
+.narrative { background: #1a1a1a; border-radius: 8px; padding: 16px; margin: 12px 0; font-size: 0.9rem; line-height: 1.6; color: #ccc; }
+.narrative strong { color: #f59e0b; }
+button { background: #1a1a1a; border: 1px solid #333; color: #fafafa; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-family: inherit; font-weight: 500; transition: all 0.2s; }
+button:hover { border-color: #f59e0b; color: #f59e0b; }
+button.primary { background: #f59e0b; color: #0a0a0a; border-color: #f59e0b; }
+button.primary:hover { background: #d97706; }
+.choices { display: flex; gap: 12px; justify-content: center; margin: 20px 0; }
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0; }
+.stat-card { background: #111; border: 1px solid #222; border-radius: 10px; padding: 16px; text-align: center; }
+.stat-card h4 { color: #f59e0b; font-size: 0.8rem; margin-bottom: 6px; }
+.stat-card .val { font-size: 1.4rem; font-weight: 700; }
+.round-history { background: #111; border: 1px solid #222; border-radius: 10px; padding: 16px; max-height: 200px; overflow-y: auto; }
+.round-entry { padding: 8px; border-bottom: 1px solid #1a1a1a; font-size: 0.85rem; display: flex; justify-content: space-between; }
+.round-entry .pass { color: #22c55e; }
+.round-entry .fail { color: #ef4444; }
+.hash-demo { background: #111; border: 1px solid #222; border-radius: 12px; padding: 24px; margin: 20px 0; }
+.hash-demo input { background: #0a0a0a; border: 1px solid #333; color: #fafafa; padding: 12px 16px; border-radius: 8px; width: 100%; font-family: inherit; margin: 10px 0; font-size: 1rem; }
+.hash-output { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 0.8rem; word-break: break-all; color: #f59e0b; margin: 10px 0; }
+.probability-bar { background: #1a1a1a; border-radius: 8px; height: 30px; margin: 10px 0; position: relative; overflow: hidden; }
+.probability-fill { height: 100%; background: linear-gradient(90deg, #22c55e, #f59e0b, #ef4444); border-radius: 8px; transition: width 0.5s; }
+.probability-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.8rem; font-weight: 600; }
+.color-demo { display: flex; gap: 20px; justify-content: center; align-items: center; margin: 20px 0; }
+.ball { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Zero-Knowledge Proof Demo</h1>
+<p class="subtitle">Prove knowledge without revealing the secret</p>
+
+<div class="tabs">
+  <button class="tab active" onclick="showSection('cave')">Ali Baba Cave</button>
+  <button class="tab" onclick="showSection('color')">Color Blindness</button>
+  <button class="tab" onclick="showSection('hash')">Hash-Based ZKP</button>
+</div>
+
+<div class="demo-container">
+  <!-- Ali Baba Cave -->
+  <div class="section active" id="sec-cave">
+    <div class="cave-scene">
+      <svg class="cave-svg" viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+        <path d="M150 20 L150 60" stroke="#444" stroke-width="3" fill="none"/>
+        <path d="M150 60 Q100 60 80 100 Q60 140 100 170 Q140 200 150 170" stroke="#444" stroke-width="3" fill="none"/>
+        <path d="M150 60 Q200 60 220 100 Q240 140 200 170 Q160 200 150 170" stroke="#444" stroke-width="3" fill="none"/>
+        <circle cx="150" cy="170" r="8" fill="#f59e0b" id="caveDoor"/>
+        <text x="70" y="120" fill="#888" font-size="12">Path A</text>
+        <text x="210" y="120" fill="#888" font-size="12">Path B</text>
+        <text x="150" y="15" fill="#aaa" font-size="11" text-anchor="middle">Entrance</text>
+        <circle id="proverDot" cx="150" cy="40" r="6" fill="#22c55e"/>
+        <text x="150" y="190" fill="#666" font-size="10" text-anchor="middle">Secret Door (locked)</text>
+      </svg>
+      <div class="narrative" id="caveNarrative">
+        <strong>The Setup:</strong> Peggy (prover) claims she knows the secret word to open the door connecting paths A and B inside the cave. Victor (verifier) wants proof without learning the word. Click "Start Round" to begin.
+      </div>
+      <div class="choices" id="caveChoices">
+        <button class="primary" onclick="startCaveRound()">Start Round</button>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card"><h4>Rounds Played</h4><div class="val" id="caveRounds">0</div></div>
+      <div class="stat-card"><h4>Successful Proofs</h4><div class="val" id="caveSuccess">0</div></div>
+      <div class="stat-card"><h4>Cheat Probability</h4><div class="val" id="caveProb">100%</div></div>
+    </div>
+
+    <div class="probability-bar">
+      <div class="probability-fill" id="probFill" style="width:100%"></div>
+      <span class="probability-label" id="probLabel">Chance of fooling verifier: 100%</span>
+    </div>
+
+    <div class="round-history" id="caveHistory"></div>
+  </div>
+
+  <!-- Color Blindness Analogy -->
+  <div class="section" id="sec-color">
+    <div class="cave-scene">
+      <div class="narrative">
+        <strong>The Scenario:</strong> You have two balls that look identical to a color-blind friend. You claim they're different colors. To prove it without saying which is which, your friend holds one in each hand, randomly swaps (or not) behind their back, then shows you. You say "swapped" or "not swapped." If you're right every time, you must be able to tell them apart.
+      </div>
+      <div class="color-demo">
+        <div class="ball" id="ballLeft" style="background:#ef4444">?</div>
+        <div style="color:#666; font-size:2rem">vs</div>
+        <div class="ball" id="ballRight" style="background:#22c55e">?</div>
+      </div>
+      <div class="narrative" id="colorNarrative">Click "Shuffle" to have your friend swap (or not) behind their back.</div>
+      <div class="choices">
+        <button class="primary" onclick="colorShuffle()">Shuffle</button>
+        <button onclick="colorGuess('swapped')" id="btnSwapped" disabled>Swapped</button>
+        <button onclick="colorGuess('same')" id="btnSame" disabled>Not Swapped</button>
+      </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><h4>Rounds</h4><div class="val" id="colorRounds">0</div></div>
+      <div class="stat-card"><h4>Correct</h4><div class="val" id="colorCorrect">0</div></div>
+      <div class="stat-card"><h4>Confidence</h4><div class="val" id="colorConf">0%</div></div>
+    </div>
+  </div>
+
+  <!-- Hash-Based ZKP -->
+  <div class="section" id="sec-hash">
+    <div class="hash-demo">
+      <h3 style="color:#f59e0b; margin-bottom:12px;">Prove You Know a Number</h3>
+      <p style="color:#aaa; font-size:0.85rem; margin-bottom:16px;">Enter a secret number. The system publishes its hash. Then prove you know it by entering it again without "revealing" it to the verifier (the hash is checked, not the number shown).</p>
+
+      <label style="color:#888; font-size:0.85rem;">Step 1: Set your secret number</label>
+      <input type="number" id="secretInput" placeholder="Enter a secret number..." />
+      <button onclick="commitSecret()">Commit (Publish Hash)</button>
+
+      <div id="hashCommitment" style="display:none; margin-top:16px;">
+        <label style="color:#888; font-size:0.85rem;">Published commitment (SHA-256 hash):</label>
+        <div class="hash-output" id="hashDisplay"></div>
+
+        <label style="color:#888; font-size:0.85rem; margin-top:12px; display:block;">Step 2: Prove knowledge (enter the number again)</label>
+        <input type="number" id="proofInput" placeholder="Prove you know the secret..." />
+        <button class="primary" onclick="verifyProof()">Verify Proof</button>
+        <div class="narrative" id="hashResult" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div class="narrative">
+      <strong>How it works in crypto:</strong> ZK-SNARKs and ZK-STARKs generalize this concept. A prover can demonstrate they know a valid transaction (e.g., sufficient balance) without revealing amounts, addresses, or other private data. Used in Zcash, zkSync, StarkNet, and Tornado Cash.
+    </div>
+  </div>
+</div>
+
+<script>
+let caveState = { rounds: 0, success: 0, peggyPath: '', knowsSecret: true };
+let colorState = { rounds: 0, correct: 0, swapped: false, revealed: false };
+let hashSecret = null;
+
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// --- Ali Baba Cave ---
+function startCaveRound() {
+  caveState.peggyPath = Math.random() < 0.5 ? 'A' : 'B';
+  const proverDot = document.getElementById('proverDot');
+  proverDot.setAttribute('cx', caveState.peggyPath === 'A' ? '80' : '220');
+  proverDot.setAttribute('cy', '120');
+  document.getElementById('caveNarrative').innerHTML = `<strong>Round ${caveState.rounds + 1}:</strong> Peggy enters the cave and takes <strong>Path ${caveState.peggyPath}</strong>. Victor arrives at the entrance and cannot see which path she took. Victor now calls out which path she should exit from.`;
+  document.getElementById('caveChoices').innerHTML = `
+    <button onclick="verifyCave('A')">Come out Path A</button>
+    <button onclick="verifyCave('B')">Come out Path B</button>
+  `;
+}
+
+function verifyCave(requested) {
+  caveState.rounds++;
+  const canExit = caveState.knowsSecret || (caveState.peggyPath === requested);
+  const success = canExit;
+
+  if (success) {
+    caveState.success++;
+    document.getElementById('caveNarrative').innerHTML = `<strong>Success!</strong> Victor called "Path ${requested}" and Peggy emerged from Path ${requested}. ${caveState.peggyPath === requested ? 'She was already on that path.' : 'She used the secret door to cross over!'} Victor is ${caveState.rounds === 1 ? 'slightly' : 'increasingly'} convinced.`;
+  } else {
+    document.getElementById('caveNarrative').innerHTML = `<strong>Caught!</strong> Victor called "Path ${requested}" but Peggy was on Path ${caveState.peggyPath} and couldn't cross. She doesn't know the secret!`;
+  }
+
+  const prob = Math.pow(0.5, caveState.success) * 100;
+  document.getElementById('caveRounds').textContent = caveState.rounds;
+  document.getElementById('caveSuccess').textContent = caveState.success;
+  document.getElementById('caveProb').textContent = prob.toFixed(prob < 1 ? 2 : 0) + '%';
+  document.getElementById('probFill').style.width = prob + '%';
+  document.getElementById('probLabel').textContent = `Chance of fooling verifier: ${prob.toFixed(prob < 1 ? 2 : 0)}%`;
+
+  const history = document.getElementById('caveHistory');
+  history.innerHTML = `<div class="round-entry"><span>Round ${caveState.rounds}: Victor asked Path ${requested}, Peggy was on ${caveState.peggyPath}</span><span class="${success ? 'pass' : 'fail'}">${success ? 'PASS' : 'FAIL'}</span></div>` + history.innerHTML;
+
+  document.getElementById('caveChoices').innerHTML = `<button class="primary" onclick="startCaveRound()">Next Round</button>`;
+}
+
+// --- Color Blindness ---
+function colorShuffle() {
+  colorState.swapped = Math.random() < 0.5;
+  colorState.revealed = false;
+  const left = document.getElementById('ballLeft');
+  const right = document.getElementById('ballRight');
+  left.style.background = '#666'; right.style.background = '#666';
+  left.textContent = '?'; right.textContent = '?';
+  document.getElementById('colorNarrative').textContent = 'Your friend shuffled behind their back. Did they swap the balls?';
+  document.getElementById('btnSwapped').disabled = false;
+  document.getElementById('btnSame').disabled = false;
+}
+
+function colorGuess(guess) {
+  colorState.rounds++;
+  const correct = (guess === 'swapped') === colorState.swapped;
+  if (correct) colorState.correct++;
+
+  const left = document.getElementById('ballLeft');
+  const right = document.getElementById('ballRight');
+  if (colorState.swapped) {
+    left.style.background = '#22c55e'; right.style.background = '#ef4444';
+  } else {
+    left.style.background = '#ef4444'; right.style.background = '#22c55e';
+  }
+  left.textContent = ''; right.textContent = '';
+
+  document.getElementById('colorNarrative').textContent = correct
+    ? `Correct! The balls were ${colorState.swapped ? 'swapped' : 'not swapped'}. You can tell them apart!`
+    : `Wrong! The balls were ${colorState.swapped ? 'swapped' : 'not swapped'}. Maybe you can't tell after all...`;
+
+  document.getElementById('colorRounds').textContent = colorState.rounds;
+  document.getElementById('colorCorrect').textContent = colorState.correct;
+  const conf = colorState.rounds > 0 ? ((1 - Math.pow(0.5, colorState.correct)) * 100).toFixed(1) : '0';
+  document.getElementById('colorConf').textContent = conf + '%';
+  document.getElementById('btnSwapped').disabled = true;
+  document.getElementById('btnSame').disabled = true;
+}
+
+// --- Hash ZKP ---
+async function sha256(msg) {
+  const data = new TextEncoder().encode(msg);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function commitSecret() {
+  const val = document.getElementById('secretInput').value;
+  if (!val) return;
+  hashSecret = val;
+  const hash = await sha256(val + '_zkp_salt_2024');
+  document.getElementById('hashDisplay').textContent = hash;
+  document.getElementById('hashCommitment').style.display = 'block';
+  document.getElementById('secretInput').disabled = true;
+}
+
+async function verifyProof() {
+  const proof = document.getElementById('proofInput').value;
+  if (!proof) return;
+  const proofHash = await sha256(proof + '_zkp_salt_2024');
+  const commitHash = document.getElementById('hashDisplay').textContent;
+  const result = document.getElementById('hashResult');
+  result.style.display = 'block';
+
+  if (proofHash === commitHash) {
+    result.innerHTML = '<strong style="color:#22c55e;">Proof Valid!</strong> The hash of your input matches the commitment. You proved knowledge of the secret without the verifier ever seeing it directly. The verifier only compared hashes.';
+  } else {
+    result.innerHTML = '<strong style="color:#ef4444;">Proof Invalid!</strong> The hash does not match the commitment. You either entered the wrong number or do not know the secret.';
+  }
+}
+</script>
+<script src="/related.js"></script>
+</body>
+</html>
