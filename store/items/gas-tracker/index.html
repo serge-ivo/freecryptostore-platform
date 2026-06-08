@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gas Fee Simulator - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; min-height: 100vh; padding: 20px; }
+a.back { position: fixed; top: 20px; left: 20px; color: #f59e0b; text-decoration: none; font-weight: 600; z-index: 100; }
+a.back:hover { text-decoration: underline; }
+h1 { text-align: center; margin: 40px 0 10px; font-size: 1.8rem; color: #f59e0b; }
+.subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+.container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.panel { background: #141414; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; }
+.panel h2 { font-size: 1rem; color: #f59e0b; margin-bottom: 12px; }
+.btn { background: #f59e0b; color: #0a0a0a; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-family: inherit; margin: 4px; }
+.btn:hover { background: #d97706; }
+.btn.secondary { background: #333; color: #fafafa; }
+.btn.secondary:hover { background: #444; }
+.btn.sm { padding: 4px 10px; font-size: 0.75rem; }
+.stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 16px 0; }
+.stat { background: #1a1a1a; border-radius: 8px; padding: 12px; }
+.stat .label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+.stat .value { font-size: 1.1rem; font-weight: 600; margin-top: 4px; }
+.stat .value.amber { color: #f59e0b; }
+.stat .value.green { color: #22c55e; }
+.stat .value.red { color: #ef4444; }
+.stat .value.blue { color: #60a5fa; }
+.form-group { margin: 12px 0; }
+.form-group label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 4px; }
+.form-group input, .form-group select { width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fafafa; padding: 8px 12px; font-family: inherit; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: #f59e0b; }
+.block-visual { background: #1a1a1a; border-radius: 8px; padding: 16px; margin: 12px 0; }
+.block-container { display: flex; align-items: flex-end; height: 180px; border-bottom: 2px solid #333; position: relative; }
+.block-fill { width: 100%; position: absolute; bottom: 0; background: linear-gradient(to top, #f59e0b33, #f59e0b11); border-top: 2px solid #f59e0b; transition: height 0.3s; }
+.block-target { position: absolute; width: 100%; border-top: 2px dashed #22c55e44; left: 0; }
+.block-label { position: absolute; right: 4px; font-size: 0.65rem; color: #888; transform: translateY(-50%); }
+.block-info { display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.75rem; color: #888; }
+.mempool { margin-top: 12px; }
+.mempool-list { max-height: 200px; overflow-y: auto; }
+.tx-item { display: flex; align-items: center; gap: 8px; padding: 8px; margin: 4px 0; background: #0a0a0a; border-radius: 6px; font-size: 0.75rem; border-left: 3px solid #333; transition: border-color 0.3s, opacity 0.3s; }
+.tx-item.included { border-left-color: #22c55e; opacity: 0.5; }
+.tx-item.pending { border-left-color: #f59e0b; }
+.tx-item.waiting { border-left-color: #ef4444; }
+.tx-item .tx-type { font-weight: 600; min-width: 80px; }
+.tx-item .tx-gas { color: #60a5fa; }
+.tx-item .tx-fee { color: #f59e0b; }
+canvas { width: 100%; height: 200px; border-radius: 8px; background: #1a1a1a; display: block; margin-top: 12px; }
+.legend { display: flex; gap: 16px; margin-top: 8px; font-size: 0.7rem; color: #888; }
+.legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+.legend .leg-base::before { background: #f59e0b; }
+.legend .leg-priority::before { background: #60a5fa; }
+.legend .leg-wait::before { background: #ef4444; }
+.eip-explain { font-size: 0.75rem; color: #888; margin-top: 12px; padding: 12px; background: #1a1a1a; border-radius: 8px; line-height: 1.5; }
+.eip-explain strong { color: #f59e0b; }
+@media (max-width: 768px) { .container { grid-template-columns: 1fr; } .stats { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Gas Fee Simulator</h1>
+<p class="subtitle">EIP-1559 fee market: base fee adjusts with demand, transactions compete for block space</p>
+
+<div class="container">
+  <div class="panel">
+    <h2>Network Status</h2>
+    <div class="stats">
+      <div class="stat"><div class="label">Block #</div><div class="value amber" id="blockNum">1</div></div>
+      <div class="stat"><div class="label">Base Fee</div><div class="value green" id="baseFee">10.0 gwei</div></div>
+      <div class="stat"><div class="label">Block Fullness</div><div class="value blue" id="blockFullness">0%</div></div>
+    </div>
+    <div class="stats" style="grid-template-columns:1fr 1fr">
+      <div class="stat"><div class="label">Gas Used / Limit</div><div class="value" id="gasUsed">0 / 30M</div></div>
+      <div class="stat"><div class="label">Mempool Size</div><div class="value" id="mempoolSize">0 txs</div></div>
+    </div>
+
+    <div style="margin:12px 0">
+      <button class="btn" id="toggleBtn" onclick="toggleSim()">Start Mining</button>
+      <button class="btn secondary" onclick="resetSim()">Reset</button>
+      <button class="btn secondary" onclick="addRandomTxs()">+5 Random TXs</button>
+    </div>
+
+    <h2>Current Block</h2>
+    <div class="block-visual">
+      <div class="block-container">
+        <div class="block-fill" id="blockFill" style="height:0%"></div>
+        <div class="block-target" style="bottom:50%"><span class="block-label">Target (15M)</span></div>
+        <div class="block-target" style="bottom:100%"><span class="block-label">Limit (30M)</span></div>
+      </div>
+      <div class="block-info">
+        <span>Gas used: <strong id="gasUsedBar">0</strong></span>
+        <span>Txs included: <strong id="txsIncluded">0</strong></span>
+        <span>Burned: <strong id="burned" style="color:#ef4444">0 gwei</strong></span>
+      </div>
+    </div>
+
+    <h2>Submit Transaction</h2>
+    <div class="form-group">
+      <label>Transaction Type</label>
+      <select id="txType" onchange="updateGasEstimate()">
+        <option value="transfer" data-gas="21000">ETH Transfer (21k gas)</option>
+        <option value="erc20" data-gas="65000">ERC-20 Transfer (65k gas)</option>
+        <option value="swap" data-gas="150000">DEX Swap (150k gas)</option>
+        <option value="nft" data-gas="200000">NFT Mint (200k gas)</option>
+        <option value="deploy" data-gas="1500000">Contract Deploy (1.5M gas)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Max Priority Fee (gwei) - tip to miner</label>
+      <input type="number" id="priorityFee" value="2" min="0" step="0.5">
+    </div>
+    <div class="form-group">
+      <label>Max Fee (gwei) - total willing to pay</label>
+      <input type="number" id="maxFee" value="20" min="1" step="1">
+    </div>
+    <button class="btn" onclick="submitTx()">Submit Transaction</button>
+
+    <div class="eip-explain">
+      <strong>EIP-1559 Rules:</strong> Each block has a target of 15M gas. If a block is &gt;50% full, base fee increases by up to 12.5%. If &lt;50% full, it decreases. The base fee is burned (removed from supply). Miners only keep the priority fee (tip). Your max fee caps total spend: effective fee = min(base_fee + priority_fee, max_fee).
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Mempool (Pending Transactions)</h2>
+    <div class="mempool">
+      <div class="mempool-list" id="mempoolList"></div>
+    </div>
+
+    <h2 style="margin-top:20px">Base Fee History</h2>
+    <canvas id="feeChart" height="200"></canvas>
+    <div class="legend">
+      <span class="leg-base">Base Fee (gwei)</span>
+    </div>
+
+    <h2 style="margin-top:20px">Wait Time vs Fee</h2>
+    <canvas id="waitChart" height="200"></canvas>
+    <div class="legend">
+      <span class="leg-priority">Priority Fee</span>
+      <span class="leg-wait">Wait (blocks)</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const GAS_LIMIT = 30000000;
+const GAS_TARGET = 15000000;
+const BASE_FEE_CHANGE = 0.125;
+const BLOCK_TIME = 2000;
+
+let state = { blockNum: 1, baseFee: 10, running: false, timer: null };
+let mempool = [];
+let feeHistory = [10];
+let waitData = [];
+let totalBurned = 0;
+let txCounter = 0;
+
+const TX_TYPES = {
+  transfer: { name: 'Transfer', gas: 21000, color: '#22c55e' },
+  erc20: { name: 'ERC-20', gas: 65000, color: '#60a5fa' },
+  swap: { name: 'Swap', gas: 150000, color: '#f59e0b' },
+  nft: { name: 'NFT Mint', gas: 200000, color: '#a855f7' },
+  deploy: { name: 'Deploy', gas: 1500000, color: '#ef4444' },
+};
+
+function submitTx() {
+  const type = document.getElementById('txType').value;
+  const priority = parseFloat(document.getElementById('priorityFee').value) || 0;
+  const maxFee = parseFloat(document.getElementById('maxFee').value) || 0;
+  const tx = {
+    id: ++txCounter,
+    type,
+    gas: TX_TYPES[type].gas,
+    priorityFee: priority,
+    maxFee: maxFee,
+    submittedAt: state.blockNum,
+    status: 'pending'
+  };
+  mempool.push(tx);
+  updateUI();
+}
+
+function addRandomTxs() {
+  const types = Object.keys(TX_TYPES);
+  for (let i = 0; i < 5; i++) {
+    const type = types[Math.floor(Math.random() * types.length)];
+    const priority = Math.round((Math.random() * 10 + 0.5) * 10) / 10;
+    const maxFee = state.baseFee + priority + Math.random() * 20;
+    mempool.push({
+      id: ++txCounter,
+      type,
+      gas: TX_TYPES[type].gas,
+      priorityFee: priority,
+      maxFee: Math.round(maxFee * 10) / 10,
+      submittedAt: state.blockNum,
+      status: 'pending'
+    });
+  }
+  updateUI();
+}
+
+function mineBlock() {
+  // Sort mempool by effective priority fee (descending)
+  const eligible = mempool.filter(tx => tx.maxFee >= state.baseFee);
+  eligible.sort((a, b) => {
+    const effA = Math.min(a.priorityFee, a.maxFee - state.baseFee);
+    const effB = Math.min(b.priorityFee, b.maxFee - state.baseFee);
+    return effB - effA;
+  });
+
+  let gasUsed = 0;
+  let included = [];
+  for (const tx of eligible) {
+    if (gasUsed + tx.gas <= GAS_LIMIT) {
+      gasUsed += tx.gas;
+      included.push(tx);
+      tx.status = 'included';
+      const wait = state.blockNum - tx.submittedAt + 1;
+      const effPriority = Math.min(tx.priorityFee, tx.maxFee - state.baseFee);
+      waitData.push({ priority: effPriority, wait });
+    }
+  }
+
+  // Remove included from mempool
+  mempool = mempool.filter(tx => tx.status !== 'included');
+
+  // Calculate burned base fee
+  const burned = state.baseFee * (gasUsed / 1e9);
+  totalBurned += burned;
+
+  // Update base fee (EIP-1559)
+  const gasUsedDelta = gasUsed - GAS_TARGET;
+  const change = state.baseFee * (gasUsedDelta / GAS_TARGET) * BASE_FEE_CHANGE;
+  state.baseFee = Math.max(1, state.baseFee + change);
+  state.baseFee = Math.round(state.baseFee * 100) / 100;
+
+  feeHistory.push(state.baseFee);
+  if (feeHistory.length > 50) feeHistory.shift();
+
+  state.blockNum++;
+
+  // Add some random txs each block to simulate real network
+  if (Math.random() < 0.6) {
+    const count = Math.floor(Math.random() * 3) + 1;
+    const types = Object.keys(TX_TYPES);
+    for (let i = 0; i < count; i++) {
+      const type = types[Math.floor(Math.random() * types.length)];
+      const priority = Math.round((Math.random() * 8 + 0.5) * 10) / 10;
+      mempool.push({
+        id: ++txCounter,
+        type,
+        gas: TX_TYPES[type].gas,
+        priorityFee: priority,
+        maxFee: Math.round((state.baseFee + priority + Math.random() * 15) * 10) / 10,
+        submittedAt: state.blockNum,
+        status: 'pending'
+      });
+    }
+  }
+
+  // Update block visual
+  const fullness = (gasUsed / GAS_LIMIT) * 100;
+  document.getElementById('blockFill').style.height = fullness + '%';
+  document.getElementById('gasUsedBar').textContent = (gasUsed / 1e6).toFixed(1) + 'M';
+  document.getElementById('txsIncluded').textContent = included.length;
+  document.getElementById('burned').textContent = burned.toFixed(4) + ' gwei';
+
+  updateUI();
+  drawCharts();
+}
+
+function updateUI() {
+  document.getElementById('blockNum').textContent = state.blockNum;
+  document.getElementById('baseFee').textContent = state.baseFee.toFixed(1) + ' gwei';
+  document.getElementById('mempoolSize').textContent = mempool.length + ' txs';
+
+  const mempoolGas = mempool.reduce((s, tx) => s + tx.gas, 0);
+  document.getElementById('gasUsed').textContent = (mempoolGas / 1e6).toFixed(1) + 'M pending';
+  document.getElementById('blockFullness').textContent = Math.round((mempoolGas / GAS_LIMIT) * 100) + '% of block';
+
+  // Mempool display
+  const sorted = [...mempool].sort((a, b) => b.priorityFee - a.priorityFee);
+  document.getElementById('mempoolList').innerHTML = sorted.slice(0, 20).map(tx => {
+    const canAfford = tx.maxFee >= state.baseFee;
+    const statusCls = canAfford ? 'pending' : 'waiting';
+    return `<div class="tx-item ${statusCls}">
+      <span class="tx-type" style="color:${TX_TYPES[tx.type].color}">${TX_TYPES[tx.type].name}</span>
+      <span class="tx-gas">${(tx.gas/1000).toFixed(0)}k gas</span>
+      <span class="tx-fee">tip: ${tx.priorityFee}g</span>
+      <span style="color:#888">max: ${tx.maxFee}g</span>
+      <span style="color:#888;font-size:0.65rem">blk#${tx.submittedAt}</span>
+    </div>`;
+  }).join('') + (sorted.length > 20 ? `<div style="text-align:center;color:#888;padding:8px;font-size:0.7rem">+${sorted.length - 20} more...</div>` : '');
+}
+
+function drawCharts() {
+  drawFeeChart();
+  drawWaitChart();
+}
+
+function drawFeeChart() {
+  const canvas = document.getElementById('feeChart');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * 2;
+  canvas.height = 400;
+  ctx.scale(2, 2);
+  const w = canvas.offsetWidth, h = 200;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, w, h);
+
+  if (feeHistory.length < 2) return;
+  const padding = 40;
+  const maxFee = Math.max(...feeHistory, 20) * 1.2;
+
+  // Grid
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = padding + ((h - padding * 2) / 4) * i;
+    ctx.beginPath(); ctx.moveTo(padding, y); ctx.lineTo(w - 10, y); ctx.stroke();
+    ctx.fillStyle = '#666'; ctx.font = '9px Manrope';
+    ctx.fillText((maxFee * (1 - i / 4)).toFixed(0), 5, y + 3);
+  }
+
+  // Line
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  feeHistory.forEach((fee, i) => {
+    const x = padding + (i / (feeHistory.length - 1)) * (w - padding - 10);
+    const y = h - padding - (fee / maxFee) * (h - padding * 2);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Fill
+  ctx.lineTo(padding + (w - padding - 10), h - padding);
+  ctx.lineTo(padding, h - padding);
+  ctx.closePath();
+  ctx.fillStyle = '#f59e0b11';
+  ctx.fill();
+}
+
+function drawWaitChart() {
+  const canvas = document.getElementById('waitChart');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * 2;
+  canvas.height = 400;
+  ctx.scale(2, 2);
+  const w = canvas.offsetWidth, h = 200;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, w, h);
+
+  const recent = waitData.slice(-50);
+  if (recent.length < 2) {
+    ctx.fillStyle = '#666'; ctx.font = '11px Manrope';
+    ctx.fillText('Waiting for transaction data...', w/2 - 80, h/2);
+    return;
+  }
+
+  const padding = 40;
+  const maxPriority = Math.max(...recent.map(d => d.priority), 10);
+  const maxWait = Math.max(...recent.map(d => d.wait), 5);
+
+  // Scatter plot
+  recent.forEach(d => {
+    const x = padding + (d.priority / maxPriority) * (w - padding - 10);
+    const y = h - padding - (d.wait / maxWait) * (h - padding * 2);
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = d.wait <= 1 ? '#22c55e' : d.wait <= 3 ? '#f59e0b' : '#ef4444';
+    ctx.fill();
+  });
+
+  // Axes labels
+  ctx.fillStyle = '#666'; ctx.font = '9px Manrope';
+  ctx.fillText('Priority Fee (gwei) ->', w / 2, h - 5);
+  ctx.save(); ctx.translate(10, h / 2); ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Wait (blocks)', 0, 0); ctx.restore();
+  ctx.fillText('0', padding - 5, h - padding + 12);
+  ctx.fillText(maxPriority.toFixed(0), w - 20, h - padding + 12);
+}
+
+function toggleSim() {
+  state.running = !state.running;
+  document.getElementById('toggleBtn').textContent = state.running ? 'Pause Mining' : 'Start Mining';
+  if (state.running) {
+    state.timer = setInterval(mineBlock, BLOCK_TIME);
+  } else {
+    clearInterval(state.timer);
+  }
+}
+
+function resetSim() {
+  state.running = false;
+  clearInterval(state.timer);
+  document.getElementById('toggleBtn').textContent = 'Start Mining';
+  state.blockNum = 1;
+  state.baseFee = 10;
+  mempool = [];
+  feeHistory = [10];
+  waitData = [];
+  totalBurned = 0;
+  txCounter = 0;
+  document.getElementById('blockFill').style.height = '0%';
+  document.getElementById('gasUsedBar').textContent = '0';
+  document.getElementById('txsIncluded').textContent = '0';
+  document.getElementById('burned').textContent = '0 gwei';
+  updateUI();
+  drawCharts();
+}
+
+function updateGasEstimate() {
+  const type = document.getElementById('txType').value;
+  // Auto-suggest max fee
+  const suggested = Math.round((state.baseFee * 1.5 + 2) * 10) / 10;
+  document.getElementById('maxFee').value = suggested;
+}
+
+updateUI();
+drawCharts();
+// Seed some initial txs
+addRandomTxs();
+addRandomTxs();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

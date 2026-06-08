@@ -251,6 +251,54 @@
       "creator": "serge-ivo",
       "creatorName": "Serge",
       "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "staking-sim",
+      "name": "Proof of Stake Simulator",
+      "description": "Validators, epochs, slashing, delegation. See how PoS consensus works with rewards and penalties.",
+      "icon": "🥩",
+      "iconBg": "#10b981",
+      "category": "blockchain",
+      "storeType": "behavior",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "flash-loan",
+      "name": "Flash Loan Visualizer",
+      "description": "Step-by-step flash loan arbitrage. Borrow, trade between DEXs, repay — all in one atomic transaction.",
+      "icon": "⚡",
+      "iconBg": "#f59e0b",
+      "category": "defi",
+      "storeType": "behavior",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "gas-tracker",
+      "name": "Gas Fee Simulator",
+      "description": "EIP-1559 fee market. Blocks fill up, base fee adjusts, transactions compete. See why gas spikes happen.",
+      "icon": "⛽",
+      "iconBg": "#ef4444",
+      "category": "network",
+      "storeType": "behavior",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "bridge-sim",
+      "name": "Cross-Chain Bridge",
+      "description": "Lock-and-mint, burn-and-unlock. See how bridges work and what happens when they get hacked.",
+      "icon": "🌉",
+      "iconBg": "#3b82f6",
+      "category": "network",
+      "storeType": "behavior",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
     }
   ]
 }

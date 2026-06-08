@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proof of Stake Simulator - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; min-height: 100vh; padding: 20px; }
+a.back { position: fixed; top: 20px; left: 20px; color: #f59e0b; text-decoration: none; font-weight: 600; z-index: 100; }
+a.back:hover { text-decoration: underline; }
+h1 { text-align: center; margin: 40px 0 10px; font-size: 1.8rem; color: #f59e0b; }
+.subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+.container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.panel { background: #141414; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; }
+.panel h2 { font-size: 1rem; color: #f59e0b; margin-bottom: 12px; }
+.btn { background: #f59e0b; color: #0a0a0a; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-family: inherit; margin: 4px; }
+.btn:hover { background: #d97706; }
+.btn.secondary { background: #333; color: #fafafa; }
+.btn.secondary:hover { background: #444; }
+.btn.danger { background: #ef4444; color: #fff; }
+.btn.danger:hover { background: #dc2626; }
+.btn.sm { padding: 4px 10px; font-size: 0.75rem; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+.stat { background: #1a1a1a; border-radius: 8px; padding: 12px; }
+.stat .label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+.stat .value { font-size: 1.1rem; font-weight: 600; margin-top: 4px; }
+.stat .value.amber { color: #f59e0b; }
+.stat .value.green { color: #22c55e; }
+.stat .value.red { color: #ef4444; }
+.stat .value.blue { color: #60a5fa; }
+.form-group { margin: 12px 0; }
+.form-group label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 4px; }
+.form-group input, .form-group select { width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fafafa; padding: 8px 12px; font-family: inherit; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: #f59e0b; }
+table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 12px; }
+th { text-align: left; color: #888; padding: 8px 6px; border-bottom: 1px solid #2a2a2a; font-weight: 500; text-transform: uppercase; font-size: 0.7rem; }
+td { padding: 8px 6px; border-bottom: 1px solid #1a1a1a; }
+tr.selected { background: #f59e0b11; }
+tr.slashed td { color: #ef4444; text-decoration: line-through; opacity: 0.6; }
+.epoch-bar { display: flex; align-items: center; gap: 12px; margin: 12px 0; }
+.epoch-progress { flex: 1; height: 8px; background: #333; border-radius: 4px; overflow: hidden; }
+.epoch-progress .fill { height: 100%; background: #f59e0b; transition: width 0.1s linear; border-radius: 4px; }
+.epoch-label { font-size: 0.8rem; color: #888; min-width: 80px; }
+.log { max-height: 200px; overflow-y: auto; font-size: 0.75rem; margin-top: 12px; background: #1a1a1a; border-radius: 8px; padding: 10px; }
+.log div { padding: 3px 0; border-bottom: 1px solid #0a0a0a; }
+.log .reward { color: #22c55e; }
+.log .slash { color: #ef4444; }
+.log .delegate { color: #60a5fa; }
+.apy-box { background: #1a1a1a; border-radius: 8px; padding: 16px; margin-top: 12px; }
+.apy-box h3 { font-size: 0.85rem; color: #f59e0b; margin-bottom: 8px; }
+.apy-result { font-size: 1.4rem; font-weight: 700; color: #22c55e; }
+.strategy-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.strategy-card { background: #0a0a0a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 12px; }
+.strategy-card h4 { font-size: 0.8rem; color: #f59e0b; margin-bottom: 6px; }
+.strategy-card .val { font-size: 1rem; font-weight: 600; }
+@media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Proof of Stake Simulator</h1>
+<p class="subtitle">Validate blocks, earn rewards, delegate stake, and watch slashing in action</p>
+
+<div class="container">
+  <div class="panel">
+    <h2>Network Status</h2>
+    <div class="stats">
+      <div class="stat"><div class="label">Epoch</div><div class="value amber" id="epochNum">0</div></div>
+      <div class="stat"><div class="label">Total Staked</div><div class="value green" id="totalStaked">0</div></div>
+      <div class="stat"><div class="label">Validators</div><div class="value blue" id="activeValidators">0</div></div>
+      <div class="stat"><div class="label">Blocks Produced</div><div class="value" id="blocksProduced">0</div></div>
+    </div>
+    <div class="epoch-bar">
+      <span class="epoch-label">Epoch progress</span>
+      <div class="epoch-progress"><div class="fill" id="epochFill" style="width:0%"></div></div>
+    </div>
+    <div style="margin-top:12px">
+      <button class="btn" id="toggleBtn" onclick="toggleSim()">Start Simulation</button>
+      <button class="btn secondary" onclick="resetSim()">Reset</button>
+    </div>
+
+    <h2 style="margin-top:20px">Validator Table</h2>
+    <table>
+      <thead><tr><th>Name</th><th>Stake</th><th>Rewards</th><th>Slashes</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody id="validatorTable"></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>Your Validator</h2>
+    <div class="stats">
+      <div class="stat"><div class="label">Your Stake</div><div class="value amber" id="yourStake">1000</div></div>
+      <div class="stat"><div class="label">Your Rewards</div><div class="value green" id="yourRewards">0.00</div></div>
+    </div>
+    <div class="form-group">
+      <label>Add Stake</label>
+      <input type="number" id="addStakeInput" value="500" min="1">
+    </div>
+    <button class="btn" onclick="addStake()">Add Stake</button>
+    <label style="margin-left:12px;font-size:0.8rem;color:#888;cursor:pointer">
+      <input type="checkbox" id="maliciousToggle" onchange="toggleMalicious()"> Act Maliciously
+    </label>
+
+    <h2 style="margin-top:20px">Delegation</h2>
+    <div class="form-group">
+      <label>Delegate To</label>
+      <select id="delegateTo"></select>
+    </div>
+    <div class="form-group">
+      <label>Amount to Delegate</label>
+      <input type="number" id="delegateAmount" value="200" min="1">
+    </div>
+    <button class="btn" onclick="delegateStake()">Delegate</button>
+
+    <div class="apy-box">
+      <h3>APY Calculator</h3>
+      <div class="form-group">
+        <label>Your effective stake (own + delegated to you)</label>
+        <input type="number" id="apyStake" value="1000" oninput="calcAPY()">
+      </div>
+      <div class="form-group">
+        <label>Network total stake</label>
+        <input type="number" id="apyTotal" value="10000" oninput="calcAPY()">
+      </div>
+      <div class="form-group">
+        <label>Annual reward pool</label>
+        <input type="number" id="apyRewardPool" value="500" oninput="calcAPY()">
+      </div>
+      <div class="apy-result" id="apyResult">5.00% APY</div>
+    </div>
+
+    <h2 style="margin-top:20px">Strategy Comparison</h2>
+    <p style="font-size:0.75rem;color:#888;margin-bottom:8px">After 100 epochs, which delegation strategy wins?</p>
+    <div class="strategy-compare">
+      <div class="strategy-card">
+        <h4>All-in-One</h4>
+        <p style="font-size:0.7rem;color:#888">Stake 100% with top validator</p>
+        <div class="val green" id="strategyAll">--</div>
+      </div>
+      <div class="strategy-card">
+        <h4>Diversified</h4>
+        <p style="font-size:0.7rem;color:#888">Split across 3 validators</p>
+        <div class="val green" id="strategyDiv">--</div>
+      </div>
+    </div>
+
+    <h2 style="margin-top:20px">Event Log</h2>
+    <div class="log" id="eventLog"></div>
+  </div>
+</div>
+
+<script>
+const EPOCH_DURATION = 2000;
+const BLOCK_REWARD = 2;
+const SLASH_PENALTY = 0.1;
+const SLASH_CHANCE_MALICIOUS = 0.4;
+
+let validators = [];
+let epoch = 0;
+let blocks = 0;
+let running = false;
+let timer = null;
+let epochStart = 0;
+let logs = [];
+let userMalicious = false;
+
+function initValidators() {
+  validators = [
+    { name: 'You', stake: 1000, rewards: 0, slashes: 0, active: true, malicious: false, delegatedFrom: {}, isUser: true },
+    { name: 'Alice', stake: 3000, rewards: 0, slashes: 0, active: true, malicious: false, delegatedFrom: {} },
+    { name: 'Bob', stake: 2000, rewards: 0, slashes: 0, active: true, malicious: false, delegatedFrom: {} },
+    { name: 'Carol', stake: 1500, rewards: 0, slashes: 0, active: true, malicious: false, delegatedFrom: {} },
+    { name: 'Dave', stake: 800, rewards: 0, slashes: 0, active: true, malicious: false, delegatedFrom: {} },
+    { name: 'Eve', stake: 500, rewards: 0, slashes: 0, active: true, malicious: Math.random() > 0.7, delegatedFrom: {} },
+  ];
+  epoch = 0; blocks = 0; logs = []; userMalicious = false;
+  document.getElementById('maliciousToggle').checked = false;
+  updateDelegateSelect();
+}
+
+function getEffectiveStake(v) {
+  let delegated = Object.values(v.delegatedFrom).reduce((a, b) => a + b, 0);
+  return v.stake + delegated;
+}
+
+function getTotalStake() {
+  return validators.filter(v => v.active).reduce((s, v) => s + getEffectiveStake(v), 0);
+}
+
+function selectValidator() {
+  const active = validators.filter(v => v.active);
+  const total = active.reduce((s, v) => s + getEffectiveStake(v), 0);
+  let r = Math.random() * total;
+  for (const v of active) {
+    r -= getEffectiveStake(v);
+    if (r <= 0) return v;
+  }
+  return active[active.length - 1];
+}
+
+function runEpoch() {
+  epoch++;
+  const selected = selectValidator();
+  blocks++;
+
+  // Check for slashing
+  if (selected.malicious && Math.random() < SLASH_CHANCE_MALICIOUS) {
+    const penalty = getEffectiveStake(selected) * SLASH_PENALTY;
+    selected.stake = Math.max(0, selected.stake - penalty);
+    selected.slashes++;
+    addLog(`Epoch ${epoch}: ${selected.name} SLASHED! Lost ${penalty.toFixed(1)} tokens`, 'slash');
+    if (selected.stake <= 0) {
+      selected.active = false;
+      addLog(`${selected.name} removed from validator set (stake depleted)`, 'slash');
+    }
+  } else {
+    selected.rewards += BLOCK_REWARD;
+    addLog(`Epoch ${epoch}: ${selected.name} produced block, +${BLOCK_REWARD} reward`, 'reward');
+  }
+
+  // Small chance of random validator misbehaving
+  validators.filter(v => v.active && !v.isUser && !v.malicious).forEach(v => {
+    if (Math.random() < 0.02) {
+      v.malicious = true;
+      addLog(`${v.name} started acting maliciously!`, 'slash');
+    }
+  });
+
+  updateUI();
+  runStrategy();
+}
+
+function addLog(msg, type) {
+  logs.unshift({ msg, type });
+  if (logs.length > 100) logs.pop();
+}
+
+function updateUI() {
+  document.getElementById('epochNum').textContent = epoch;
+  document.getElementById('totalStaked').textContent = getTotalStake().toLocaleString();
+  document.getElementById('activeValidators').textContent = validators.filter(v => v.active).length;
+  document.getElementById('blocksProduced').textContent = blocks;
+
+  const user = validators[0];
+  document.getElementById('yourStake').textContent = user.stake.toFixed(1);
+  document.getElementById('yourRewards').textContent = user.rewards.toFixed(2);
+
+  // Table
+  const tbody = document.getElementById('validatorTable');
+  tbody.innerHTML = validators.map((v, i) => {
+    const eff = getEffectiveStake(v);
+    const pct = getTotalStake() > 0 ? ((eff / getTotalStake()) * 100).toFixed(1) : '0';
+    const cls = v.isUser ? 'selected' : (!v.active ? 'slashed' : '');
+    const status = !v.active ? 'Jailed' : (v.malicious ? 'Malicious' : 'Active');
+    const statusColor = !v.active ? '#ef4444' : (v.malicious ? '#f59e0b' : '#22c55e');
+    return `<tr class="${cls}">
+      <td>${v.name}${v.isUser ? ' (you)' : ''}</td>
+      <td>${eff.toFixed(0)} <span style="color:#888;font-size:0.7rem">(${pct}%)</span></td>
+      <td style="color:#22c55e">${v.rewards.toFixed(2)}</td>
+      <td style="color:#ef4444">${v.slashes}</td>
+      <td style="color:${statusColor}">${status}</td>
+      <td>${!v.isUser && v.active ? `<button class="btn sm secondary" onclick="delegateToIdx(${i})">Delegate</button>` : ''}</td>
+    </tr>`;
+  }).join('');
+
+  // Log
+  document.getElementById('eventLog').innerHTML = logs.slice(0, 50).map(l =>
+    `<div class="${l.type}">${l.msg}</div>`
+  ).join('');
+}
+
+function toggleSim() {
+  running = !running;
+  document.getElementById('toggleBtn').textContent = running ? 'Pause' : 'Start Simulation';
+  if (running) {
+    epochStart = Date.now();
+    timer = setInterval(() => {
+      runEpoch();
+      epochStart = Date.now();
+    }, EPOCH_DURATION);
+    animateProgress();
+  } else {
+    clearInterval(timer);
+  }
+}
+
+function animateProgress() {
+  function frame() {
+    if (!running) return;
+    const elapsed = Date.now() - epochStart;
+    const pct = Math.min((elapsed / EPOCH_DURATION) * 100, 100);
+    document.getElementById('epochFill').style.width = pct + '%';
+    requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+function resetSim() {
+  running = false;
+  clearInterval(timer);
+  document.getElementById('toggleBtn').textContent = 'Start Simulation';
+  document.getElementById('epochFill').style.width = '0%';
+  initValidators();
+  updateUI();
+}
+
+function addStake() {
+  const amount = parseFloat(document.getElementById('addStakeInput').value) || 0;
+  if (amount <= 0) return;
+  validators[0].stake += amount;
+  addLog(`You added ${amount} stake`, 'delegate');
+  updateUI();
+}
+
+function toggleMalicious() {
+  userMalicious = document.getElementById('maliciousToggle').checked;
+  validators[0].malicious = userMalicious;
+  if (userMalicious) addLog('You started acting maliciously! Risk of slashing!', 'slash');
+  else addLog('You stopped acting maliciously.', 'reward');
+}
+
+function updateDelegateSelect() {
+  const sel = document.getElementById('delegateTo');
+  sel.innerHTML = validators.filter((v, i) => i > 0 && v.active).map((v, i) =>
+    `<option value="${validators.indexOf(v)}">${v.name} (stake: ${getEffectiveStake(v).toFixed(0)})</option>`
+  ).join('');
+}
+
+function delegateStake() {
+  const idx = parseInt(document.getElementById('delegateTo').value);
+  const amount = parseFloat(document.getElementById('delegateAmount').value) || 0;
+  if (amount <= 0 || amount > validators[0].stake) return;
+  validators[0].stake -= amount;
+  if (!validators[idx].delegatedFrom['You']) validators[idx].delegatedFrom['You'] = 0;
+  validators[idx].delegatedFrom['You'] += amount;
+  addLog(`You delegated ${amount} to ${validators[idx].name}`, 'delegate');
+  updateDelegateSelect();
+  updateUI();
+}
+
+function delegateToIdx(idx) {
+  document.getElementById('delegateTo').value = idx;
+  delegateStake();
+}
+
+function calcAPY() {
+  const stake = parseFloat(document.getElementById('apyStake').value) || 0;
+  const total = parseFloat(document.getElementById('apyTotal').value) || 1;
+  const pool = parseFloat(document.getElementById('apyRewardPool').value) || 0;
+  const apy = total > 0 ? ((stake / total) * pool / stake * 100) : 0;
+  document.getElementById('apyResult').textContent = (isFinite(apy) ? apy.toFixed(2) : '0.00') + '% APY';
+}
+
+function runStrategy() {
+  // Simulate 100 epochs for strategy comparison
+  const totalStake = getTotalStake();
+  const userStake = 1000;
+  const topValidator = validators.filter(v => v.active && !v.isUser).sort((a, b) => getEffectiveStake(b) - getEffectiveStake(a))[0];
+
+  // All-in-one: delegate 100% to top validator
+  const allInReward = (userStake / (totalStake + userStake)) * BLOCK_REWARD * 100;
+  // Risk: if top validator gets slashed
+  const slashRisk = topValidator && topValidator.malicious ? 0.4 : 0.05;
+  const allInExpected = allInReward * (1 - slashRisk * SLASH_PENALTY * 10);
+
+  // Diversified: split across 3
+  const divReward = allInReward * 0.95; // slightly less due to split overhead
+  const divExpected = divReward * (1 - slashRisk * SLASH_PENALTY * 3);
+
+  document.getElementById('strategyAll').textContent = `+${allInExpected.toFixed(2)} tokens`;
+  document.getElementById('strategyDiv').textContent = `+${divExpected.toFixed(2)} tokens`;
+
+  // Color best
+  document.getElementById('strategyAll').style.color = allInExpected >= divExpected ? '#22c55e' : '#888';
+  document.getElementById('strategyDiv').style.color = divExpected >= allInExpected ? '#22c55e' : '#888';
+}
+
+initValidators();
+updateUI();
+calcAPY();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

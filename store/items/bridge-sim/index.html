@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cross-Chain Bridge Visualizer - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; min-height: 100vh; padding: 20px; }
+a.back { position: fixed; top: 20px; left: 20px; color: #f59e0b; text-decoration: none; font-weight: 600; z-index: 100; }
+a.back:hover { text-decoration: underline; }
+h1 { text-align: center; margin: 40px 0 10px; font-size: 1.8rem; color: #f59e0b; }
+.subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+.container { max-width: 1200px; margin: 0 auto; }
+.panel { background: #141414; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.panel h2 { font-size: 1rem; color: #f59e0b; margin-bottom: 12px; }
+.btn { background: #f59e0b; color: #0a0a0a; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-family: inherit; margin: 4px; }
+.btn:hover { background: #d97706; }
+.btn.secondary { background: #333; color: #fafafa; }
+.btn.secondary:hover { background: #444; }
+.btn.danger { background: #ef4444; color: #fff; }
+.btn.danger:hover { background: #dc2626; }
+.btn.sm { padding: 4px 10px; font-size: 0.75rem; }
+.stats { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin: 16px 0; }
+.stat { background: #1a1a1a; border-radius: 8px; padding: 12px; }
+.stat .label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+.stat .value { font-size: 1.1rem; font-weight: 600; margin-top: 4px; }
+.stat .value.amber { color: #f59e0b; }
+.stat .value.green { color: #22c55e; }
+.stat .value.red { color: #ef4444; }
+.stat .value.blue { color: #60a5fa; }
+.form-group { margin: 12px 0; }
+.form-group label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 4px; }
+.form-group input, .form-group select { width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fafafa; padding: 8px 12px; font-family: inherit; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: #f59e0b; }
+.bridge-layout { display: grid; grid-template-columns: 1fr 200px 1fr; gap: 0; align-items: stretch; min-height: 350px; }
+.chain { background: #1a1a1a; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; }
+.chain h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.chain-a h3 { color: #60a5fa; }
+.chain-b h3 { color: #a855f7; }
+.chain-dot { width: 10px; height: 10px; border-radius: 50%; }
+.chain-a .chain-dot { background: #60a5fa; }
+.chain-b .chain-dot { background: #a855f7; }
+.token-list { flex: 1; }
+.token-row { display: flex; justify-content: space-between; align-items: center; padding: 8px; margin: 4px 0; background: #0a0a0a; border-radius: 6px; font-size: 0.8rem; }
+.token-row .amount { font-weight: 600; font-size: 0.9rem; }
+.token-row .wrapped { color: #a855f7; font-style: italic; }
+.bridge-middle { display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+.bridge-icon { width: 60px; height: 60px; background: #f59e0b22; border: 2px solid #f59e0b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 8px 0; }
+.bridge-arrow { position: relative; width: 100%; height: 40px; display: flex; align-items: center; justify-content: center; }
+.bridge-arrow .line { width: 80%; height: 2px; background: #333; position: relative; }
+.bridge-arrow .line::after { content: ''; position: absolute; right: -4px; top: -4px; border-left: 8px solid #333; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+.bridge-arrow.active .line { background: #f59e0b; animation: pulse 0.5s ease-in-out infinite; }
+.bridge-arrow.active .line::after { border-left-color: #f59e0b; }
+.bridge-arrow.reverse .line { transform: rotate(180deg); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.token-anim { position: absolute; width: 20px; height: 20px; background: #f59e0b; border-radius: 50%; font-size: 0.6rem; display: flex; align-items: center; justify-content: center; font-weight: 700; opacity: 0; z-index: 10; }
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+.type-tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+.type-tabs .tab { padding: 6px 14px; border-radius: 6px; background: #1a1a1a; color: #888; cursor: pointer; font-size: 0.8rem; border: 1px solid #2a2a2a; transition: all 0.2s; }
+.type-tabs .tab.active { background: #f59e0b22; color: #f59e0b; border-color: #f59e0b; }
+.risk-panel { margin-top: 16px; padding: 16px; background: #ef444411; border: 1px solid #ef444433; border-radius: 8px; display: none; }
+.risk-panel.show { display: block; }
+.risk-panel h3 { color: #ef4444; font-size: 0.85rem; margin-bottom: 8px; }
+.risk-panel p { font-size: 0.8rem; color: #ccc; line-height: 1.5; }
+.log { max-height: 150px; overflow-y: auto; font-size: 0.75rem; margin-top: 12px; background: #1a1a1a; border-radius: 8px; padding: 10px; }
+.log div { padding: 3px 0; border-bottom: 1px solid #0a0a0a; }
+.log .lock { color: #60a5fa; }
+.log .mint { color: #a855f7; }
+.log .burn { color: #ef4444; }
+.log .unlock { color: #22c55e; }
+.log .hack { color: #ef4444; font-weight: 600; }
+.tvl-bar { margin-top: 12px; }
+.tvl-bar .bar-outer { height: 20px; background: #0a0a0a; border-radius: 10px; overflow: hidden; position: relative; }
+.tvl-bar .bar-inner { height: 100%; background: linear-gradient(90deg, #60a5fa, #a855f7); border-radius: 10px; transition: width 0.5s; }
+.tvl-bar .bar-label { display: flex; justify-content: space-between; font-size: 0.7rem; color: #888; margin-top: 4px; }
+.explainer { margin-top: 12px; font-size: 0.75rem; color: #888; padding: 12px; background: #1a1a1a; border-radius: 8px; line-height: 1.5; }
+.explainer strong { color: #f59e0b; }
+@media (max-width: 768px) { .bridge-layout { grid-template-columns: 1fr; } .stats { grid-template-columns: 1fr 1fr; } .controls { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Cross-Chain Bridge Visualizer</h1>
+<p class="subtitle">Lock, mint, burn, unlock - move tokens between chains and understand bridge risks</p>
+
+<div class="container">
+  <div class="panel">
+    <h2>Bridge Overview</h2>
+    <div class="stats">
+      <div class="stat"><div class="label">TVL (Chain A Locked)</div><div class="value amber" id="tvlDisplay">0</div></div>
+      <div class="stat"><div class="label">Wrapped on Chain B</div><div class="value blue" id="wrappedDisplay">0</div></div>
+      <div class="stat"><div class="label">Transfers</div><div class="value green" id="transferCount">0</div></div>
+      <div class="stat"><div class="label">Bridge Status</div><div class="value green" id="bridgeStatus">Healthy</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Bridge Type</h2>
+    <div class="type-tabs">
+      <div class="tab active" onclick="setBridgeType('lock-mint')">Lock & Mint</div>
+      <div class="tab" onclick="setBridgeType('burn-mint')">Burn & Mint</div>
+      <div class="tab" onclick="setBridgeType('atomic')">Atomic Swap</div>
+    </div>
+    <div id="typeDesc" class="explainer">
+      <strong>Lock & Mint:</strong> Tokens are locked in a smart contract on Chain A. An equivalent amount of "wrapped" tokens are minted on Chain B. To go back, burn wrapped tokens on B to unlock originals on A. The bridge contract holds all locked value (TVL).
+    </div>
+
+    <div class="bridge-layout">
+      <div class="chain chain-a">
+        <h3><span class="chain-dot"></span> Chain A (Origin)</h3>
+        <div class="token-list" id="chainATokens"></div>
+        <div style="margin-top:auto;padding-top:12px;border-top:1px solid #2a2a2a">
+          <div style="font-size:0.7rem;color:#888">Bridge Contract (Locked)</div>
+          <div style="font-size:1.2rem;font-weight:700;color:#60a5fa" id="lockedDisplay">0 ETH</div>
+        </div>
+      </div>
+
+      <div class="bridge-middle">
+        <div class="bridge-arrow" id="arrowAtoB">
+          <div class="line"></div>
+        </div>
+        <div class="bridge-icon" id="bridgeIcon">&#128279;</div>
+        <div class="bridge-arrow reverse" id="arrowBtoA">
+          <div class="line"></div>
+        </div>
+        <div class="token-anim" id="tokenAnim"></div>
+      </div>
+
+      <div class="chain chain-b">
+        <h3><span class="chain-dot"></span> Chain B (Destination)</h3>
+        <div class="token-list" id="chainBTokens"></div>
+        <div style="margin-top:auto;padding-top:12px;border-top:1px solid #2a2a2a">
+          <div style="font-size:0.7rem;color:#888">Wrapped Token Supply</div>
+          <div style="font-size:1.2rem;font-weight:700;color:#a855f7" id="mintedDisplay">0 wETH</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tvl-bar">
+      <div class="bar-outer"><div class="bar-inner" id="tvlBar" style="width:0%"></div></div>
+      <div class="bar-label"><span>0 locked</span><span id="tvlMax">Max: 100,000 ETH</span></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="panel">
+      <h2>Transfer Tokens</h2>
+      <div class="form-group">
+        <label>Direction</label>
+        <select id="direction">
+          <option value="AtoB">Chain A -> Chain B (Lock & Mint)</option>
+          <option value="BtoA">Chain B -> Chain A (Burn & Unlock)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Amount (ETH)</label>
+        <input type="number" id="bridgeAmount" value="100" min="1" step="10">
+      </div>
+      <button class="btn" onclick="executeBridge()">Bridge Tokens</button>
+      <button class="btn secondary" onclick="executeBridge5x()">Bridge x5</button>
+
+      <h2 style="margin-top:16px">Risk Simulation</h2>
+      <button class="btn danger" onclick="simulateHack()">Simulate Bridge Hack</button>
+      <button class="btn secondary" onclick="recoverBridge()">Recover Bridge</button>
+
+      <div class="risk-panel" id="riskPanel">
+        <h3>Bridge Exploited!</h3>
+        <p id="riskText">An attacker drained the bridge contract. Wrapped tokens on Chain B now have no backing on Chain A. Holders of wETH cannot redeem - their tokens are worthless.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Event Log</h2>
+      <div class="log" id="eventLog"></div>
+
+      <div class="explainer" style="margin-top:16px">
+        <strong>Bridge Risks:</strong>
+        <p style="margin-top:4px">1. <strong>Smart contract bugs</strong> - code vulnerability allows draining locked funds</p>
+        <p>2. <strong>Validator collusion</strong> - bridge validators approve fraudulent mints</p>
+        <p>3. <strong>Oracle manipulation</strong> - false confirmation of cross-chain state</p>
+        <p style="margin-top:8px">When a bridge is hacked, wrapped tokens lose their 1:1 backing. The TVL (locked tokens) disappears but wrapped tokens still exist - creating unbacked IOUs.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let bridgeState = {
+  type: 'lock-mint',
+  locked: 0,
+  minted: 0,
+  transfers: 0,
+  hacked: false,
+  hackedAmount: 0,
+  chainABalances: { 'Alice': 5000, 'Bob': 3000, 'Carol': 2000 },
+  chainBBalances: { 'Alice': 0, 'Bob': 0, 'Carol': 0 },
+};
+let logs = [];
+const MAX_TVL = 100000;
+
+function setBridgeType(type) {
+  bridgeState.type = type;
+  document.querySelectorAll('.type-tabs .tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  const descs = {
+    'lock-mint': '<strong>Lock & Mint:</strong> Tokens are locked in a smart contract on Chain A. An equivalent amount of "wrapped" tokens are minted on Chain B. To go back, burn wrapped tokens on B to unlock originals on A. The bridge contract holds all locked value (TVL).',
+    'burn-mint': '<strong>Burn & Mint:</strong> Tokens are burned (destroyed) on Chain A, and new native tokens are minted on Chain B. No locked TVL - tokens are destroyed and recreated. Used by chains with shared security (like rollups).',
+    'atomic': '<strong>Atomic Swap:</strong> Two parties agree to swap tokens across chains using hash time-locked contracts (HTLCs). Either both swaps complete or neither does. No bridge contract, no TVL, no custodial risk - but requires a counterparty.'
+  };
+  document.getElementById('typeDesc').innerHTML = descs[type];
+  updateUI();
+}
+
+function executeBridge() {
+  if (bridgeState.hacked && document.getElementById('direction').value === 'BtoA') {
+    addLog('Cannot unlock - bridge contract is empty (hacked)', 'hack');
+    return;
+  }
+
+  const dir = document.getElementById('direction').value;
+  const amount = parseFloat(document.getElementById('bridgeAmount').value) || 0;
+  if (amount <= 0) return;
+
+  if (dir === 'AtoB') {
+    // Lock on A, mint on B
+    const user = getRandomUser('A');
+    if (bridgeState.chainABalances[user] < amount) {
+      addLog(`${user} has insufficient balance on Chain A`, 'burn');
+      return;
+    }
+    bridgeState.chainABalances[user] -= amount;
+    bridgeState.locked += amount;
+    bridgeState.minted += amount;
+    bridgeState.chainBBalances[user] += amount;
+    bridgeState.transfers++;
+    addLog(`LOCK: ${user} locked ${amount} ETH on Chain A`, 'lock');
+    addLog(`MINT: ${amount} wETH minted to ${user} on Chain B`, 'mint');
+    animateArrow('AtoB');
+  } else {
+    // Burn on B, unlock on A
+    const user = getRandomUser('B');
+    if (bridgeState.chainBBalances[user] < amount) {
+      addLog(`${user} has insufficient wETH on Chain B`, 'burn');
+      return;
+    }
+    bridgeState.chainBBalances[user] -= amount;
+    bridgeState.minted -= amount;
+    bridgeState.locked -= amount;
+    bridgeState.chainABalances[user] += amount;
+    bridgeState.transfers++;
+    addLog(`BURN: ${user} burned ${amount} wETH on Chain B`, 'burn');
+    addLog(`UNLOCK: ${amount} ETH unlocked to ${user} on Chain A`, 'unlock');
+    animateArrow('BtoA');
+  }
+
+  updateUI();
+}
+
+function executeBridge5x() {
+  for (let i = 0; i < 5; i++) {
+    setTimeout(() => executeBridge(), i * 300);
+  }
+}
+
+function getRandomUser(chain) {
+  const users = Object.keys(chain === 'A' ? bridgeState.chainABalances : bridgeState.chainBBalances);
+  const withBalance = users.filter(u => {
+    const bal = chain === 'A' ? bridgeState.chainABalances[u] : bridgeState.chainBBalances[u];
+    return bal > 0;
+  });
+  if (withBalance.length === 0) return users[0];
+  return withBalance[Math.floor(Math.random() * withBalance.length)];
+}
+
+function simulateHack() {
+  if (bridgeState.locked <= 0) {
+    addLog('Nothing to hack - bridge has no locked value', 'hack');
+    return;
+  }
+  bridgeState.hacked = true;
+  bridgeState.hackedAmount = bridgeState.locked;
+  addLog(`EXPLOIT: Attacker drained ${bridgeState.locked} ETH from bridge contract!`, 'hack');
+  addLog(`${bridgeState.minted} wETH on Chain B is now UNBACKED`, 'hack');
+  bridgeState.locked = 0;
+  document.getElementById('riskPanel').classList.add('show');
+  document.getElementById('riskText').textContent = `An attacker drained ${bridgeState.hackedAmount} ETH from the bridge contract. ${bridgeState.minted} wETH on Chain B now has NO backing on Chain A. Holders cannot redeem their wrapped tokens.`;
+  document.getElementById('bridgeStatus').textContent = 'HACKED';
+  document.getElementById('bridgeStatus').className = 'value red';
+  updateUI();
+}
+
+function recoverBridge() {
+  if (!bridgeState.hacked) return;
+  bridgeState.hacked = false;
+  bridgeState.locked = bridgeState.minted; // Restore backing
+  document.getElementById('riskPanel').classList.remove('show');
+  document.getElementById('bridgeStatus').textContent = 'Healthy';
+  document.getElementById('bridgeStatus').className = 'value green';
+  addLog('Bridge recovered - backing restored by treasury', 'unlock');
+  updateUI();
+}
+
+function animateArrow(dir) {
+  const arrow = document.getElementById(dir === 'AtoB' ? 'arrowAtoB' : 'arrowBtoA');
+  arrow.classList.add('active');
+  setTimeout(() => arrow.classList.remove('active'), 1000);
+}
+
+function addLog(msg, type) {
+  logs.unshift({ msg, type });
+  if (logs.length > 100) logs.pop();
+}
+
+function updateUI() {
+  document.getElementById('tvlDisplay').textContent = bridgeState.locked.toLocaleString() + ' ETH';
+  document.getElementById('wrappedDisplay').textContent = bridgeState.minted.toLocaleString() + ' wETH';
+  document.getElementById('transferCount').textContent = bridgeState.transfers;
+  document.getElementById('lockedDisplay').textContent = bridgeState.locked.toLocaleString() + ' ETH';
+  document.getElementById('mintedDisplay').textContent = bridgeState.minted.toLocaleString() + ' wETH';
+
+  // TVL bar
+  const pct = Math.min((bridgeState.locked / MAX_TVL) * 100, 100);
+  document.getElementById('tvlBar').style.width = pct + '%';
+  if (bridgeState.hacked) {
+    document.getElementById('tvlBar').style.background = 'linear-gradient(90deg, #ef4444, #dc2626)';
+  } else {
+    document.getElementById('tvlBar').style.background = 'linear-gradient(90deg, #60a5fa, #a855f7)';
+  }
+
+  // Chain A tokens
+  document.getElementById('chainATokens').innerHTML = Object.entries(bridgeState.chainABalances).map(([user, bal]) =>
+    `<div class="token-row"><span>${user}</span><span class="amount">${bal.toLocaleString()} ETH</span></div>`
+  ).join('');
+
+  // Chain B tokens
+  document.getElementById('chainBTokens').innerHTML = Object.entries(bridgeState.chainBBalances).map(([user, bal]) =>
+    `<div class="token-row"><span>${user}</span><span class="amount ${bal > 0 ? 'wrapped' : ''}">${bal.toLocaleString()} wETH${bridgeState.hacked && bal > 0 ? ' (unbacked!)' : ''}</span></div>`
+  ).join('');
+
+  // Backing status
+  if (bridgeState.hacked && bridgeState.minted > 0) {
+    document.getElementById('tvlDisplay').parentElement.querySelector('.label').textContent = 'TVL (DRAINED!)';
+  } else {
+    document.getElementById('tvlDisplay').parentElement.querySelector('.label').textContent = 'TVL (Chain A Locked)';
+  }
+
+  // Log
+  document.getElementById('eventLog').innerHTML = logs.slice(0, 50).map(l =>
+    `<div class="${l.type}">${l.msg}</div>`
+  ).join('');
+}
+
+updateUI();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

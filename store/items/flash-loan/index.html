@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flash Loan Visualizer - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; min-height: 100vh; padding: 20px; }
+a.back { position: fixed; top: 20px; left: 20px; color: #f59e0b; text-decoration: none; font-weight: 600; z-index: 100; }
+a.back:hover { text-decoration: underline; }
+h1 { text-align: center; margin: 40px 0 10px; font-size: 1.8rem; color: #f59e0b; }
+.subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+.container { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.panel { background: #141414; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; }
+.panel h2 { font-size: 1rem; color: #f59e0b; margin-bottom: 12px; }
+.btn { background: #f59e0b; color: #0a0a0a; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-family: inherit; margin: 4px; }
+.btn:hover { background: #d97706; }
+.btn.secondary { background: #333; color: #fafafa; }
+.btn.secondary:hover { background: #444; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+.stat { background: #1a1a1a; border-radius: 8px; padding: 12px; }
+.stat .label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+.stat .value { font-size: 1.1rem; font-weight: 600; margin-top: 4px; }
+.stat .value.amber { color: #f59e0b; }
+.stat .value.green { color: #22c55e; }
+.stat .value.red { color: #ef4444; }
+.stat .value.blue { color: #60a5fa; }
+.form-group { margin: 12px 0; }
+.form-group label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 4px; }
+.form-group input { width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fafafa; padding: 8px 12px; font-family: inherit; }
+.form-group input:focus { outline: none; border-color: #f59e0b; }
+.diagram { position: relative; height: 320px; margin: 20px 0; }
+.node { position: absolute; background: #1a1a1a; border: 2px solid #2a2a2a; border-radius: 12px; padding: 12px 16px; text-align: center; font-size: 0.8rem; min-width: 120px; transition: border-color 0.3s, box-shadow 0.3s; }
+.node.active { border-color: #f59e0b; box-shadow: 0 0 20px #f59e0b33; }
+.node.success { border-color: #22c55e; box-shadow: 0 0 20px #22c55e33; }
+.node.fail { border-color: #ef4444; box-shadow: 0 0 20px #ef444433; }
+.node .node-title { font-weight: 600; color: #f59e0b; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px; }
+.node .node-value { font-size: 1rem; font-weight: 700; }
+.arrow { position: absolute; height: 2px; background: #333; transform-origin: left center; transition: background 0.3s; }
+.arrow.active { background: #f59e0b; box-shadow: 0 0 8px #f59e0b66; }
+.arrow::after { content: ''; position: absolute; right: -6px; top: -4px; width: 0; height: 0; border-left: 8px solid #333; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+.arrow.active::after { border-left-color: #f59e0b; }
+.token-flow { position: absolute; width: 12px; height: 12px; background: #f59e0b; border-radius: 50%; opacity: 0; animation: none; }
+@keyframes flowRight { 0% { opacity: 1; transform: translateX(0); } 100% { opacity: 0.5; transform: translateX(var(--dist)); } }
+@keyframes flowLeft { 0% { opacity: 1; transform: translateX(0); } 100% { opacity: 0.5; transform: translateX(calc(-1 * var(--dist))); } }
+.steps { margin-top: 16px; }
+.step { display: flex; align-items: flex-start; gap: 12px; padding: 10px; border-radius: 8px; margin: 6px 0; background: #1a1a1a; opacity: 0.4; transition: opacity 0.3s, background 0.3s; }
+.step.active { opacity: 1; background: #f59e0b11; }
+.step.done { opacity: 1; }
+.step.success { background: #22c55e11; }
+.step.fail { background: #ef444411; }
+.step-num { width: 24px; height: 24px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
+.step.active .step-num { background: #f59e0b; color: #0a0a0a; }
+.step.success .step-num { background: #22c55e; color: #0a0a0a; }
+.step.fail .step-num { background: #ef4444; }
+.step-text { font-size: 0.8rem; }
+.step-text .desc { color: #888; font-size: 0.75rem; margin-top: 2px; }
+.result-box { margin-top: 16px; padding: 16px; border-radius: 8px; text-align: center; font-weight: 600; font-size: 1.1rem; }
+.result-box.profit { background: #22c55e22; color: #22c55e; border: 1px solid #22c55e44; }
+.result-box.loss { background: #ef444422; color: #ef4444; border: 1px solid #ef444444; }
+.result-box.neutral { background: #1a1a1a; color: #888; border: 1px solid #2a2a2a; }
+.explainer { margin-top: 16px; background: #1a1a1a; border-radius: 8px; padding: 16px; font-size: 0.8rem; color: #aaa; line-height: 1.6; }
+.explainer h3 { color: #f59e0b; font-size: 0.85rem; margin-bottom: 8px; }
+.calc-table { width: 100%; font-size: 0.8rem; margin-top: 12px; }
+.calc-table td { padding: 6px 8px; border-bottom: 1px solid #1a1a1a; }
+.calc-table td:last-child { text-align: right; font-weight: 600; }
+.calc-table tr.total td { border-top: 2px solid #2a2a2a; font-weight: 700; }
+@media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Flash Loan Visualizer</h1>
+<p class="subtitle">Borrow millions with zero collateral - repay in the same transaction or it never happened</p>
+
+<div class="container">
+  <div class="panel">
+    <h2>Configure Flash Loan</h2>
+    <div class="form-group">
+      <label>Loan Amount (tokens)</label>
+      <input type="number" id="loanAmount" value="10000" min="100" step="100" oninput="updateCalc()">
+    </div>
+    <div class="form-group">
+      <label>DEX A Price (tokens per ETH)</label>
+      <input type="number" id="priceA" value="2000" min="1" step="10" oninput="updateCalc()">
+    </div>
+    <div class="form-group">
+      <label>DEX B Price (tokens per ETH)</label>
+      <input type="number" id="priceB" value="2050" min="1" step="10" oninput="updateCalc()">
+    </div>
+    <div class="form-group">
+      <label>Flash Loan Fee (%)</label>
+      <input type="number" id="feePercent" value="0.09" min="0" step="0.01" oninput="updateCalc()">
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="label">Price Diff</div><div class="value amber" id="priceDiff">2.50%</div></div>
+      <div class="stat"><div class="label">Loan Fee</div><div class="value red" id="loanFee">9.00</div></div>
+      <div class="stat"><div class="label">Arb Profit</div><div class="value green" id="arbProfit">--</div></div>
+      <div class="stat"><div class="label">Net P/L</div><div class="value" id="netPL">--</div></div>
+    </div>
+
+    <button class="btn" id="execBtn" onclick="executeFlashLoan()">Execute Flash Loan</button>
+    <button class="btn secondary" onclick="resetViz()">Reset</button>
+
+    <h2 style="margin-top:20px">Profit / Loss Breakdown</h2>
+    <table class="calc-table" id="calcTable">
+      <tr><td>Borrow</td><td id="calcBorrow">10,000 tokens</td></tr>
+      <tr><td>Buy ETH on DEX A</td><td id="calcBuyETH">5.0000 ETH</td></tr>
+      <tr><td>Sell ETH on DEX B</td><td id="calcSellTokens">10,250 tokens</td></tr>
+      <tr><td>Gross Arb Profit</td><td id="calcGross" style="color:#22c55e">250.00</td></tr>
+      <tr><td>Flash Loan Fee</td><td id="calcFee" style="color:#ef4444">-9.00</td></tr>
+      <tr class="total"><td>Net Profit</td><td id="calcNet">241.00</td></tr>
+    </table>
+
+    <div class="result-box neutral" id="resultBox">Configure parameters and execute</div>
+  </div>
+
+  <div class="panel">
+    <h2>Transaction Flow</h2>
+    <div class="diagram" id="diagram">
+      <div class="node" id="nodeLender" style="top:10px;left:50%;transform:translateX(-50%)">
+        <div class="node-title">Lending Pool</div>
+        <div class="node-value" id="lenderBalance">100,000</div>
+      </div>
+      <div class="node" id="nodeYou" style="top:130px;left:50%;transform:translateX(-50%)">
+        <div class="node-title">Your Contract</div>
+        <div class="node-value" id="yourBalance">0</div>
+      </div>
+      <div class="node" id="nodeDexA" style="top:260px;left:15%">
+        <div class="node-title">DEX A (Cheap)</div>
+        <div class="node-value" id="dexAPrice">2,000/ETH</div>
+      </div>
+      <div class="node" id="nodeDexB" style="top:260px;right:15%">
+        <div class="node-title">DEX B (Expensive)</div>
+        <div class="node-value" id="dexBPrice">2,050/ETH</div>
+      </div>
+    </div>
+
+    <h2>Execution Steps</h2>
+    <div class="steps" id="steps">
+      <div class="step" id="step1">
+        <div class="step-num">1</div>
+        <div class="step-text">Borrow tokens from lending pool<div class="desc">No collateral needed - must repay in same TX</div></div>
+      </div>
+      <div class="step" id="step2">
+        <div class="step-num">2</div>
+        <div class="step-text">Buy ETH on DEX A (cheaper price)<div class="desc">Convert borrowed tokens to ETH</div></div>
+      </div>
+      <div class="step" id="step3">
+        <div class="step-num">3</div>
+        <div class="step-text">Sell ETH on DEX B (higher price)<div class="desc">Convert ETH back to tokens at profit</div></div>
+      </div>
+      <div class="step" id="step4">
+        <div class="step-num">4</div>
+        <div class="step-text">Repay loan + fee to lending pool<div class="desc">Keep the difference as profit</div></div>
+      </div>
+      <div class="step" id="step5">
+        <div class="step-num">5</div>
+        <div class="step-text">Transaction result<div class="desc">Success = profit kept. Failure = TX reverts entirely.</div></div>
+      </div>
+    </div>
+
+    <div class="explainer">
+      <h3>Why This Works</h3>
+      <p>Flash loans exploit <strong>atomic transactions</strong> on blockchain. The entire operation (borrow + trade + repay) happens in a single transaction. If at any point the math doesn't work out (you can't repay), the entire transaction reverts as if it never happened.</p>
+      <p style="margin-top:8px"><strong>No risk to the lender:</strong> Either they get repaid with fee, or the loan never existed. The borrower risks only the gas fee for a failed transaction.</p>
+      <p style="margin-top:8px"><strong>The opportunity:</strong> Price differences between DEXs (arbitrage) can be exploited without any capital. Anyone with a smart contract can do it.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+let animating = false;
+let currentStep = 0;
+
+function getParams() {
+  const loan = parseFloat(document.getElementById('loanAmount').value) || 0;
+  const priceA = parseFloat(document.getElementById('priceA').value) || 1;
+  const priceB = parseFloat(document.getElementById('priceB').value) || 1;
+  const feePct = parseFloat(document.getElementById('feePercent').value) || 0;
+  return { loan, priceA, priceB, feePct };
+}
+
+function updateCalc() {
+  const { loan, priceA, priceB, feePct } = getParams();
+  const priceDiff = ((priceB - priceA) / priceA * 100);
+  const fee = loan * (feePct / 100);
+  const ethBought = loan / priceA;
+  const tokensFromSale = ethBought * priceB;
+  const grossProfit = tokensFromSale - loan;
+  const netProfit = grossProfit - fee;
+
+  document.getElementById('priceDiff').textContent = priceDiff.toFixed(2) + '%';
+  document.getElementById('loanFee').textContent = fee.toFixed(2);
+  document.getElementById('arbProfit').textContent = grossProfit.toFixed(2);
+
+  const netEl = document.getElementById('netPL');
+  netEl.textContent = (netProfit >= 0 ? '+' : '') + netProfit.toFixed(2);
+  netEl.className = 'value ' + (netProfit > 0 ? 'green' : netProfit < 0 ? 'red' : '');
+
+  document.getElementById('calcBorrow').textContent = loan.toLocaleString() + ' tokens';
+  document.getElementById('calcBuyETH').textContent = ethBought.toFixed(4) + ' ETH';
+  document.getElementById('calcSellTokens').textContent = tokensFromSale.toLocaleString(undefined, {maximumFractionDigits: 2}) + ' tokens';
+  document.getElementById('calcGross').textContent = grossProfit.toFixed(2);
+  document.getElementById('calcGross').style.color = grossProfit >= 0 ? '#22c55e' : '#ef4444';
+  document.getElementById('calcFee').textContent = '-' + fee.toFixed(2);
+  document.getElementById('calcNet').textContent = (netProfit >= 0 ? '+' : '') + netProfit.toFixed(2);
+  document.getElementById('calcNet').style.color = netProfit >= 0 ? '#22c55e' : '#ef4444';
+
+  document.getElementById('dexAPrice').textContent = priceA.toLocaleString() + '/ETH';
+  document.getElementById('dexBPrice').textContent = priceB.toLocaleString() + '/ETH';
+}
+
+function resetViz() {
+  animating = false;
+  currentStep = 0;
+  document.querySelectorAll('.node').forEach(n => { n.className = 'node'; });
+  document.querySelectorAll('.step').forEach(s => { s.className = 'step'; });
+  document.getElementById('resultBox').className = 'result-box neutral';
+  document.getElementById('resultBox').textContent = 'Configure parameters and execute';
+  document.getElementById('lenderBalance').textContent = '100,000';
+  document.getElementById('yourBalance').textContent = '0';
+  document.getElementById('execBtn').disabled = false;
+}
+
+async function executeFlashLoan() {
+  if (animating) return;
+  animating = true;
+  document.getElementById('execBtn').disabled = true;
+  resetViz();
+
+  const { loan, priceA, priceB, feePct } = getParams();
+  const fee = loan * (feePct / 100);
+  const ethBought = loan / priceA;
+  const tokensFromSale = ethBought * priceB;
+  const netProfit = tokensFromSale - loan - fee;
+  const success = netProfit >= 0;
+
+  // Step 1: Borrow
+  await animateStep(1);
+  document.getElementById('nodeLender').classList.add('active');
+  document.getElementById('nodeYou').classList.add('active');
+  document.getElementById('lenderBalance').textContent = (100000 - loan).toLocaleString();
+  document.getElementById('yourBalance').textContent = loan.toLocaleString();
+  await delay(800);
+
+  // Step 2: Buy on DEX A
+  await animateStep(2);
+  document.getElementById('nodeDexA').classList.add('active');
+  document.getElementById('yourBalance').textContent = ethBought.toFixed(4) + ' ETH';
+  await delay(800);
+
+  // Step 3: Sell on DEX B
+  await animateStep(3);
+  document.getElementById('nodeDexB').classList.add('active');
+  document.getElementById('yourBalance').textContent = tokensFromSale.toLocaleString(undefined, {maximumFractionDigits: 2});
+  await delay(800);
+
+  // Step 4: Repay
+  await animateStep(4);
+  const repayAmount = loan + fee;
+  document.getElementById('yourBalance').textContent = (tokensFromSale - repayAmount).toFixed(2);
+  document.getElementById('lenderBalance').textContent = (100000 + fee).toLocaleString(undefined, {maximumFractionDigits: 2});
+  await delay(800);
+
+  // Step 5: Result
+  await animateStep(5);
+  if (success) {
+    document.querySelectorAll('.node').forEach(n => { n.classList.remove('active'); n.classList.add('success'); });
+    document.getElementById('step5').classList.add('success');
+    document.getElementById('resultBox').className = 'result-box profit';
+    document.getElementById('resultBox').textContent = `SUCCESS! Net profit: +${netProfit.toFixed(2)} tokens`;
+  } else {
+    document.querySelectorAll('.node').forEach(n => { n.classList.remove('active'); n.classList.add('fail'); });
+    document.getElementById('step5').classList.add('fail');
+    document.getElementById('resultBox').className = 'result-box loss';
+    document.getElementById('resultBox').textContent = `REVERTED! Would lose ${Math.abs(netProfit).toFixed(2)} tokens - TX never happened`;
+    // Revert state
+    document.getElementById('lenderBalance').textContent = '100,000';
+    document.getElementById('yourBalance').textContent = '0';
+  }
+
+  animating = false;
+  document.getElementById('execBtn').disabled = false;
+}
+
+function animateStep(num) {
+  return new Promise(resolve => {
+    for (let i = 1; i <= 5; i++) {
+      const step = document.getElementById('step' + i);
+      if (i < num) { step.className = 'step done'; }
+      else if (i === num) { step.className = 'step active'; }
+      else { step.className = 'step'; }
+    }
+    setTimeout(resolve, 400);
+  });
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+updateCalc();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>
