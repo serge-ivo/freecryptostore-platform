@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://freecryptostore.pages.dev/sitemap.xml
