@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Layer 2 Scaling Visualizer - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;min-height:100vh;padding:20px}
+.back{position:fixed;top:16px;left:16px;color:#f59e0b;text-decoration:none;font-size:14px;z-index:100;opacity:0.8}
+.back:hover{opacity:1}
+h1{text-align:center;font-size:1.8rem;margin:20px 0 6px;color:#f59e0b}
+.subtitle{text-align:center;color:#888;font-size:0.9rem;margin-bottom:20px}
+.container{max-width:1200px;margin:0 auto}
+.controls{display:flex;gap:10px;justify-content:center;margin-bottom:20px;flex-wrap:wrap}
+button{background:#f59e0b;color:#0a0a0a;border:none;padding:10px 16px;border-radius:6px;font-family:inherit;font-weight:600;cursor:pointer;font-size:0.85rem}
+button:hover{background:#d97706}
+button.secondary{background:#333;color:#fafafa}
+button.secondary:hover{background:#444}
+button.active{background:#f59e0b;color:#0a0a0a}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.panel{background:#111;border:1px solid #222;border-radius:12px;padding:20px}
+.panel h2{font-size:1rem;color:#f59e0b;margin-bottom:10px;font-weight:600}
+.panel h3{font-size:0.85rem;color:#ccc;margin:10px 0 6px}
+.chain{display:flex;flex-direction:column;gap:6px}
+.chain-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.chain-header .label{font-size:0.8rem;color:#888}
+.chain-header .tps{font-size:1.2rem;font-weight:700;color:#f59e0b}
+.block-row{display:flex;gap:3px;flex-wrap:wrap;min-height:40px;align-items:flex-start}
+.block{background:#1a1a1a;border:1px solid #333;border-radius:4px;padding:4px 6px;font-size:0.6rem;font-family:monospace;transition:all 0.3s;min-width:24px;text-align:center}
+.block.l1{border-color:#3b82f6;color:#3b82f6}
+.block.l2{border-color:#10b981;color:#10b981}
+.block.rollup{border-color:#f59e0b;color:#f59e0b;background:#f59e0b10}
+.block.fraud{border-color:#ef4444;color:#ef4444;animation:pulse 0.5s infinite}
+.block.proof{border-color:#8b5cf6;color:#8b5cf6;background:#8b5cf610}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.tx-pool{background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:8px;min-height:60px;max-height:120px;overflow-y:auto;margin:8px 0}
+.tx{display:inline-block;background:#1a1a1a;border:1px solid #333;border-radius:3px;padding:2px 5px;margin:2px;font-size:0.6rem;font-family:monospace;color:#888;transition:all 0.3s}
+.tx.pending{border-color:#f59e0b;color:#f59e0b}
+.tx.confirmed{border-color:#10b981;color:#10b981}
+.tx.batched{border-color:#3b82f6;color:#3b82f6}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.stat{background:#1a1a1a;border-radius:6px;padding:10px;text-align:center}
+.stat .val{font-size:1.1rem;font-weight:700;color:#f59e0b}
+.stat .lbl{font-size:0.65rem;color:#888;margin-top:2px}
+.comparison{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.comp-item{background:#1a1a1a;border-radius:8px;padding:12px;text-align:center}
+.comp-item.l1{border:1px solid #3b82f640}
+.comp-item.l2{border:1px solid #10b98140}
+.comp-item .title{font-size:0.75rem;color:#888;margin-bottom:4px}
+.comp-item .value{font-size:1.2rem;font-weight:700}
+.comp-item.l1 .value{color:#3b82f6}
+.comp-item.l2 .value{color:#10b981}
+.full-width{grid-column:1/-1}
+.timeline{position:relative;border-left:2px solid #333;margin:10px 0 10px 10px;padding-left:16px}
+.timeline-event{position:relative;margin:8px 0;font-size:0.75rem;color:#888}
+.timeline-event::before{content:'';position:absolute;left:-21px;top:4px;width:10px;height:10px;border-radius:50%;background:#333}
+.timeline-event.active::before{background:#f59e0b}
+.timeline-event.done::before{background:#10b981}
+.timeline-event.alert::before{background:#ef4444}
+.mode-tabs{display:flex;gap:4px;margin-bottom:12px;background:#1a1a1a;padding:3px;border-radius:8px}
+.mode-tab{flex:1;padding:8px;text-align:center;border-radius:6px;cursor:pointer;font-size:0.8rem;color:#888;transition:all 0.2s}
+.mode-tab.active{background:#f59e0b;color:#0a0a0a;font-weight:600}
+.fraud-window{background:#ef444410;border:1px solid #ef444440;border-radius:8px;padding:10px;margin:10px 0;font-size:0.75rem}
+.fraud-window .timer{font-size:1.2rem;font-weight:700;color:#ef4444}
+.zk-proof{background:#8b5cf610;border:1px solid #8b5cf640;border-radius:8px;padding:10px;margin:10px 0;font-size:0.75rem}
+.zk-proof .status{color:#8b5cf6;font-weight:600}
+.progress-bar{height:6px;background:#222;border-radius:3px;overflow:hidden;margin:6px 0}
+.progress-fill{height:100%;border-radius:3px;transition:width 0.3s}
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Layer 2 Scaling Visualizer</h1>
+<p class="subtitle">Compare L1 vs L2: batching, rollups, fraud proofs, and ZK proofs</p>
+
+<div class="container">
+  <div class="controls">
+    <button onclick="startSim()">Start Simulation</button>
+    <button class="secondary" onclick="stopSim()">Stop</button>
+    <button class="secondary" onclick="resetSim()">Reset</button>
+    <button class="secondary" onclick="burstTx()">Burst (50 TXs)</button>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Layer 1 (Mainnet)</h2>
+      <div class="chain-header">
+        <span class="label">Slow & Expensive</span>
+        <span class="tps" id="l1Tps">0 TPS</span>
+      </div>
+      <h3>Pending Transactions</h3>
+      <div class="tx-pool" id="l1Pool"></div>
+      <h3>Confirmed Blocks</h3>
+      <div class="block-row" id="l1Blocks"></div>
+      <div class="stats">
+        <div class="stat"><div class="val" id="l1Total">0</div><div class="lbl">Total TX</div></div>
+        <div class="stat"><div class="val" id="l1Cost">$14.50</div><div class="lbl">Avg Cost</div></div>
+        <div class="stat"><div class="val" id="l1Time">12s</div><div class="lbl">Block Time</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Layer 2 (Rollup)</h2>
+      <div class="chain-header">
+        <span class="label">Fast & Cheap</span>
+        <span class="tps" id="l2Tps">0 TPS</span>
+      </div>
+      <h3>Batching Queue</h3>
+      <div class="tx-pool" id="l2Pool"></div>
+      <h3>L2 Blocks + Rollup Submissions</h3>
+      <div class="block-row" id="l2Blocks"></div>
+      <div class="stats">
+        <div class="stat"><div class="val" id="l2Total">0</div><div class="lbl">Total TX</div></div>
+        <div class="stat"><div class="val" id="l2Cost">$0.12</div><div class="lbl">Avg Cost</div></div>
+        <div class="stat"><div class="val" id="l2Time">2s</div><div class="lbl">Block Time</div></div>
+      </div>
+    </div>
+
+    <div class="panel full-width">
+      <div class="mode-tabs">
+        <div class="mode-tab active" onclick="setMode('optimistic')">Optimistic Rollup</div>
+        <div class="mode-tab" onclick="setMode('zk')">ZK Rollup</div>
+      </div>
+
+      <div id="optimisticPanel">
+        <h2>Optimistic Rollup — Fraud Proof Window</h2>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:10px">Transactions assumed valid. Challengers have 7 days to submit fraud proofs.</p>
+        <div class="fraud-window">
+          <div>Challenge Period: <span class="timer" id="fraudTimer">7d 0h 0m</span></div>
+          <div class="progress-bar"><div class="progress-fill" id="fraudProgress" style="width:0%;background:#ef4444"></div></div>
+          <div style="margin-top:6px">Watchers: <span id="watcherCount">5</span> active | Challenges: <span id="challengeCount">0</span></div>
+        </div>
+        <button class="secondary" onclick="submitFraudProof()">Submit Fraud Proof (simulate)</button>
+        <div class="timeline" id="optimisticTimeline">
+          <div class="timeline-event done">Batch #1 submitted to L1</div>
+          <div class="timeline-event active">Challenge window open (7 days)</div>
+          <div class="timeline-event">Finalized on L1 (if no valid challenge)</div>
+        </div>
+      </div>
+
+      <div id="zkPanel" style="display:none">
+        <h2>ZK Rollup — Validity Proof Generation</h2>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:10px">Each batch includes a cryptographic proof of validity. No challenge period needed.</p>
+        <div class="zk-proof">
+          <div>Proof Status: <span class="status" id="zkStatus">Generating...</span></div>
+          <div class="progress-bar"><div class="progress-fill" id="zkProgress" style="width:0%;background:#8b5cf6"></div></div>
+          <div style="margin-top:6px">Proof size: <span id="proofSize">~0.5 KB</span> | Verification gas: <span id="verifyGas">~500k</span></div>
+        </div>
+        <div class="timeline" id="zkTimeline">
+          <div class="timeline-event done">Transactions collected in batch</div>
+          <div class="timeline-event active">ZK-SNARK proof being generated</div>
+          <div class="timeline-event">Proof verified on L1 — instantly final</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel full-width">
+      <h2>Cost & Throughput Comparison</h2>
+      <div class="comparison">
+        <div class="comp-item l1"><div class="title">L1 Gas per TX</div><div class="value" id="compL1Gas">21,000</div></div>
+        <div class="comp-item l2"><div class="title">L2 Gas per TX (amortized)</div><div class="value" id="compL2Gas">~1,200</div></div>
+        <div class="comp-item l1"><div class="title">L1 Throughput</div><div class="value" id="compL1Tps">~15 TPS</div></div>
+        <div class="comp-item l2"><div class="title">L2 Throughput</div><div class="value" id="compL2Tps">~2,000 TPS</div></div>
+        <div class="comp-item l1"><div class="title">L1 Finality</div><div class="value">~12 min</div></div>
+        <div class="comp-item l2"><div class="title">L2 Finality (ZK)</div><div class="value">~10 min</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let running = false;
+let mode = 'optimistic';
+let l1TxCount = 0, l2TxCount = 0;
+let l1Pending = [], l2Pending = [];
+let l1BlockCount = 0, l2BlockCount = 0;
+let l1Interval, l2Interval, txInterval;
+let fraudTimeLeft = 7 * 24 * 60;
+let zkProofProgress = 0;
+let challengeCount = 0;
+let l1TpsWindow = [], l2TpsWindow = [];
+
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t.textContent.toLowerCase().includes(m)));
+  document.getElementById('optimisticPanel').style.display = m === 'optimistic' ? 'block' : 'none';
+  document.getElementById('zkPanel').style.display = m === 'zk' ? 'block' : 'none';
+}
+
+function startSim() {
+  if (running) return;
+  running = true;
+
+  // Generate transactions
+  txInterval = setInterval(() => {
+    const count = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < count; i++) {
+      const txId = Math.random().toString(36).slice(2, 8);
+      l1Pending.push(txId);
+      l2Pending.push(txId);
+    }
+    renderPools();
+  }, 500);
+
+  // L1 block production (slow)
+  l1Interval = setInterval(() => {
+    if (l1Pending.length === 0) return;
+    const batchSize = Math.min(l1Pending.length, 3 + Math.floor(Math.random() * 3));
+    const batch = l1Pending.splice(0, batchSize);
+    l1TxCount += batch.length;
+    l1BlockCount++;
+    l1TpsWindow.push({ count: batch.length, time: Date.now() });
+    addBlock('l1Blocks', l1BlockCount, batch.length, 'l1');
+    updateStats();
+    renderPools();
+  }, 4000);
+
+  // L2 block production (fast)
+  l2Interval = setInterval(() => {
+    if (l2Pending.length === 0) return;
+    const batchSize = Math.min(l2Pending.length, 15 + Math.floor(Math.random() * 20));
+    const batch = l2Pending.splice(0, batchSize);
+    l2TxCount += batch.length;
+    l2BlockCount++;
+    l2TpsWindow.push({ count: batch.length, time: Date.now() });
+
+    // Every 5th L2 block, submit a rollup to L1
+    if (l2BlockCount % 5 === 0) {
+      addBlock('l2Blocks', l2BlockCount, batch.length, 'rollup');
+      if (mode === 'zk') startZkProof();
+    } else {
+      addBlock('l2Blocks', l2BlockCount, batch.length, 'l2');
+    }
+    updateStats();
+    renderPools();
+  }, 800);
+
+  // Fraud timer
+  if (mode === 'optimistic') {
+    setInterval(updateFraudTimer, 1000);
+  }
+}
+
+function stopSim() {
+  running = false;
+  clearInterval(txInterval);
+  clearInterval(l1Interval);
+  clearInterval(l2Interval);
+}
+
+function resetSim() {
+  stopSim();
+  l1TxCount = 0; l2TxCount = 0;
+  l1Pending = []; l2Pending = [];
+  l1BlockCount = 0; l2BlockCount = 0;
+  l1TpsWindow = []; l2TpsWindow = [];
+  fraudTimeLeft = 7 * 24 * 60;
+  zkProofProgress = 0;
+  challengeCount = 0;
+  document.getElementById('l1Pool').innerHTML = '';
+  document.getElementById('l2Pool').innerHTML = '';
+  document.getElementById('l1Blocks').innerHTML = '';
+  document.getElementById('l2Blocks').innerHTML = '';
+  updateStats();
+}
+
+function burstTx() {
+  for (let i = 0; i < 50; i++) {
+    const txId = Math.random().toString(36).slice(2, 8);
+    l1Pending.push(txId);
+    l2Pending.push(txId);
+  }
+  renderPools();
+}
+
+function renderPools() {
+  const l1Pool = document.getElementById('l1Pool');
+  const l2Pool = document.getElementById('l2Pool');
+  l1Pool.innerHTML = l1Pending.slice(0, 30).map(tx => `<span class="tx pending">${tx}</span>`).join('') + (l1Pending.length > 30 ? `<span class="tx">+${l1Pending.length - 30} more</span>` : '');
+  l2Pool.innerHTML = l2Pending.slice(0, 30).map(tx => `<span class="tx pending">${tx}</span>`).join('') + (l2Pending.length > 30 ? `<span class="tx">+${l2Pending.length - 30} more</span>` : '');
+}
+
+function addBlock(containerId, num, txCount, type) {
+  const container = document.getElementById(containerId);
+  const block = document.createElement('div');
+  block.className = 'block ' + type;
+  block.textContent = type === 'rollup' ? `R${num}` : `#${num}`;
+  block.title = `${txCount} TXs`;
+  container.appendChild(block);
+  // Keep only last 20 blocks visible
+  while (container.children.length > 20) container.removeChild(container.firstChild);
+}
+
+function updateStats() {
+  document.getElementById('l1Total').textContent = l1TxCount;
+  document.getElementById('l2Total').textContent = l2TxCount;
+
+  // Calculate TPS
+  const now = Date.now();
+  l1TpsWindow = l1TpsWindow.filter(e => now - e.time < 10000);
+  l2TpsWindow = l2TpsWindow.filter(e => now - e.time < 10000);
+  const l1Tps = l1TpsWindow.reduce((a, e) => a + e.count, 0) / 10;
+  const l2Tps = l2TpsWindow.reduce((a, e) => a + e.count, 0) / 10;
+  document.getElementById('l1Tps').textContent = l1Tps.toFixed(1) + ' TPS';
+  document.getElementById('l2Tps').textContent = l2Tps.toFixed(1) + ' TPS';
+
+  // Dynamic cost
+  const l1Congestion = Math.min(l1Pending.length / 20, 3);
+  const l1Cost = (8 + l1Congestion * 12).toFixed(2);
+  const l2Cost = (0.05 + l1Congestion * 0.03).toFixed(2);
+  document.getElementById('l1Cost').textContent = '$' + l1Cost;
+  document.getElementById('l2Cost').textContent = '$' + l2Cost;
+
+  document.getElementById('compL1Tps').textContent = '~' + Math.max(15, Math.round(l1Tps * 10)) + ' TPS';
+  document.getElementById('compL2Tps').textContent = '~' + Math.max(2000, Math.round(l2Tps * 100)) + ' TPS';
+}
+
+function updateFraudTimer() {
+  if (fraudTimeLeft > 0) {
+    fraudTimeLeft -= 10; // Speed up for demo
+    const days = Math.floor(fraudTimeLeft / (24 * 60));
+    const hours = Math.floor((fraudTimeLeft % (24 * 60)) / 60);
+    const mins = fraudTimeLeft % 60;
+    document.getElementById('fraudTimer').textContent = `${days}d ${hours}h ${mins}m`;
+    const pct = ((7 * 24 * 60 - fraudTimeLeft) / (7 * 24 * 60)) * 100;
+    document.getElementById('fraudProgress').style.width = pct + '%';
+
+    if (fraudTimeLeft <= 0) {
+      document.getElementById('fraudTimer').textContent = 'FINALIZED';
+      const events = document.querySelectorAll('#optimisticTimeline .timeline-event');
+      events[1].classList.remove('active');
+      events[1].classList.add('done');
+      events[2].classList.add('done');
+    }
+  }
+}
+
+function submitFraudProof() {
+  challengeCount++;
+  document.getElementById('challengeCount').textContent = challengeCount;
+  // Add fraud block to L2
+  const container = document.getElementById('l2Blocks');
+  const block = document.createElement('div');
+  block.className = 'block fraud';
+  block.textContent = 'FRAUD';
+  block.title = 'Fraud proof submitted!';
+  container.appendChild(block);
+
+  // Reset fraud timer (batch reverted, new one starts)
+  fraudTimeLeft = 7 * 24 * 60;
+  const events = document.querySelectorAll('#optimisticTimeline .timeline-event');
+  events[2].classList.remove('done');
+
+  // Add alert event
+  const timeline = document.getElementById('optimisticTimeline');
+  const ev = document.createElement('div');
+  ev.className = 'timeline-event alert';
+  ev.textContent = `Fraud proof #${challengeCount} submitted — batch reverted!`;
+  timeline.insertBefore(ev, timeline.children[2]);
+}
+
+function startZkProof() {
+  zkProofProgress = 0;
+  document.getElementById('zkStatus').textContent = 'Generating...';
+  const interval = setInterval(() => {
+    zkProofProgress += 5 + Math.random() * 10;
+    if (zkProofProgress >= 100) {
+      zkProofProgress = 100;
+      document.getElementById('zkStatus').textContent = 'Verified!';
+      document.getElementById('zkProgress').style.width = '100%';
+      clearInterval(interval);
+
+      // Add proof block
+      const container = document.getElementById('l2Blocks');
+      const block = document.createElement('div');
+      block.className = 'block proof';
+      block.textContent = 'ZK';
+      block.title = 'ZK proof verified on L1';
+      container.appendChild(block);
+
+      const events = document.querySelectorAll('#zkTimeline .timeline-event');
+      events[1].classList.remove('active');
+      events[1].classList.add('done');
+      events[2].classList.add('done');
+      setTimeout(() => {
+        events[1].classList.add('active');
+        events[1].classList.remove('done');
+        events[2].classList.remove('done');
+        document.getElementById('zkStatus').textContent = 'Waiting for batch...';
+        document.getElementById('zkProgress').style.width = '0%';
+      }, 3000);
+    } else {
+      document.getElementById('zkProgress').style.width = zkProofProgress + '%';
+    }
+  }, 200);
+}
+</script>
+<script src="/related.js"></script>
+</body>
+</html>
