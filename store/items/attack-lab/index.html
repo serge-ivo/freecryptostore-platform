@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blockchain Attack Laboratory - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;min-height:100vh;padding:20px}
+.back{position:fixed;top:16px;left:16px;color:#f59e0b;text-decoration:none;font-size:14px;z-index:100;opacity:0.8}
+.back:hover{opacity:1}
+h1{text-align:center;font-size:1.8rem;margin:20px 0 6px;color:#f59e0b}
+.subtitle{text-align:center;color:#888;font-size:0.9rem;margin-bottom:20px}
+.container{max-width:1100px;margin:0 auto}
+.tabs{display:flex;gap:4px;margin-bottom:20px;background:#111;border-radius:10px;padding:4px}
+.tab{flex:1;padding:10px 8px;text-align:center;border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;transition:all 0.2s;color:#888}
+.tab:hover{color:#fafafa}
+.tab.active{background:#f59e0b;color:#0a0a0a}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.attack-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.panel{background:#111;border:1px solid #222;border-radius:12px;padding:20px}
+.panel h2{font-size:1rem;color:#f59e0b;margin-bottom:10px;font-weight:600}
+.panel h3{font-size:0.85rem;color:#ccc;margin:12px 0 6px}
+canvas{width:100%;height:250px;border-radius:8px;background:#0d0d0d;border:1px solid #222}
+button{background:#f59e0b;color:#0a0a0a;border:none;padding:10px 16px;border-radius:6px;font-family:inherit;font-weight:600;cursor:pointer;font-size:0.85rem;margin-top:8px}
+button:hover{background:#d97706}
+button:disabled{opacity:0.4;cursor:not-allowed}
+button.danger{background:#ef4444}
+button.danger:hover{background:#dc2626}
+.steps{list-style:none;margin-top:10px}
+.steps li{padding:6px 10px;margin:4px 0;border-radius:6px;font-size:0.8rem;background:#1a1a1a;border-left:3px solid #333;transition:all 0.3s}
+.steps li.active{border-left-color:#f59e0b;background:#f59e0b10}
+.steps li.done{border-left-color:#10b981;background:#10b98110}
+.steps li.failed{border-left-color:#ef4444;background:#ef444410}
+.defense{background:#10b98110;border:1px solid #10b98140;border-radius:8px;padding:12px;margin-top:12px;font-size:0.8rem}
+.defense h4{color:#10b981;margin-bottom:6px;font-size:0.85rem}
+.defense ul{list-style:disc;margin-left:16px}
+.defense li{margin:3px 0;color:#aaa}
+.progress-bar{height:6px;background:#222;border-radius:3px;margin:8px 0;overflow:hidden}
+.progress-fill{height:100%;background:#f59e0b;border-radius:3px;transition:width 0.3s}
+.node-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin:10px 0}
+.node{width:100%;aspect-ratio:1;border-radius:50%;background:#333;border:2px solid #444;display:flex;align-items:center;justify-content:center;font-size:0.6rem;transition:all 0.3s}
+.node.honest{background:#10b98140;border-color:#10b981}
+.node.attacker{background:#ef444440;border-color:#ef4444}
+.node.victim{background:#f59e0b40;border-color:#f59e0b}
+.node.sybil{background:#8b5cf640;border-color:#8b5cf6}
+.node.eclipsed{background:#ef444420;border-color:#ef4444;opacity:0.5}
+.contract-state{background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:12px;margin:10px 0;font-family:monospace;font-size:0.75rem}
+.contract-state .var{color:#f59e0b}
+.contract-state .val{color:#10b981}
+.contract-state .danger-val{color:#ef4444}
+.metric{display:inline-block;background:#1a1a1a;border-radius:6px;padding:6px 10px;margin:4px;font-size:0.8rem}
+.metric .num{color:#f59e0b;font-weight:700}
+.full-width{grid-column:1/-1}
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Blockchain Attack Laboratory</h1>
+<p class="subtitle">Simulate and understand 4 fundamental blockchain attacks</p>
+
+<div class="container">
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(0)">51% Attack</div>
+    <div class="tab" onclick="switchTab(1)">Sybil Attack</div>
+    <div class="tab" onclick="switchTab(2)">Eclipse Attack</div>
+    <div class="tab" onclick="switchTab(3)">Reentrancy</div>
+  </div>
+
+  <!-- 51% Attack -->
+  <div class="tab-content active" id="tab0">
+    <div class="attack-grid">
+      <div class="panel">
+        <h2>51% Attack Simulation</h2>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:10px">Control majority hashpower to reorganize the chain and double-spend.</p>
+        <label style="font-size:0.8rem;color:#888">Attacker Hashpower: <span id="hashDisplay">55%</span></label>
+        <input type="range" id="hashSlider" min="40" max="90" value="55" style="width:100%;margin:8px 0" oninput="document.getElementById('hashDisplay').textContent=this.value+'%'">
+        <button class="danger" onclick="run51Attack()">Launch 51% Attack</button>
+        <ol class="steps" id="steps51">
+          <li>Attacker begins mining secret chain fork</li>
+          <li>Attacker sends TX to merchant on public chain</li>
+          <li>Merchant confirms (6 blocks)</li>
+          <li>Attacker reveals longer secret chain</li>
+          <li>Network reorganizes — TX reversed (double-spend!)</li>
+        </ol>
+      </div>
+      <div class="panel">
+        <h2>Chain Visualization</h2>
+        <canvas id="canvas51"></canvas>
+        <div style="margin-top:8px">
+          <span class="metric">Public Chain: <span class="num" id="pubLen">0</span> blocks</span>
+          <span class="metric">Secret Chain: <span class="num" id="secLen">0</span> blocks</span>
+        </div>
+        <div class="defense">
+          <h4>Defenses</h4>
+          <ul>
+            <li>Wait for more confirmations (increase cost of attack)</li>
+            <li>Use Proof-of-Stake (no hashpower market)</li>
+            <li>Checkpointing by trusted parties</li>
+            <li>Penalize equivocation (slashing conditions)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sybil Attack -->
+  <div class="tab-content" id="tab1">
+    <div class="attack-grid">
+      <div class="panel">
+        <h2>Sybil Attack Simulation</h2>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:10px">Flood the network with fake identities to gain disproportionate influence.</p>
+        <button class="danger" onclick="runSybilAttack()">Flood Network with Sybil Nodes</button>
+        <ol class="steps" id="stepsSybil">
+          <li>Network starts with 12 honest nodes</li>
+          <li>Attacker creates 24 fake identities (Sybils)</li>
+          <li>Sybils connect to honest nodes</li>
+          <li>Sybils gain majority vote in consensus</li>
+          <li>Attacker controls network decisions</li>
+        </ol>
+        <div style="margin-top:12px">
+          <span class="metric">Honest: <span class="num" id="honestCount">12</span></span>
+          <span class="metric">Sybil: <span class="num" id="sybilCount">0</span></span>
+          <span class="metric">Control: <span class="num" id="sybilControl">0%</span></span>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Network View</h2>
+        <div class="node-grid" id="sybilGrid"></div>
+        <div class="progress-bar"><div class="progress-fill" id="sybilProgress" style="width:0%"></div></div>
+        <p style="font-size:0.75rem;color:#888;margin-top:4px">Attacker network influence</p>
+        <div class="defense">
+          <h4>Defenses</h4>
+          <ul>
+            <li>Proof-of-Work: each identity costs real resources</li>
+            <li>Proof-of-Stake: each identity needs capital at risk</li>
+            <li>Identity verification / reputation systems</li>
+            <li>Resource testing (computational puzzles per node)</li>
+            <li>Social trust graphs (vouch-based admission)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Eclipse Attack -->
+  <div class="tab-content" id="tab2">
+    <div class="attack-grid">
+      <div class="panel">
+        <h2>Eclipse Attack Simulation</h2>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:10px">Isolate a victim node by monopolizing all its peer connections.</p>
+        <button class="danger" onclick="runEclipseAttack()">Eclipse Target Node</button>
+        <ol class="steps" id="stepsEclipse">
+          <li>Identify target node and its peer slots (8 slots)</li>
+          <li>Flood target with connection requests</li>
+          <li>Wait for target to restart / rotate peers</li>
+          <li>All slots filled with attacker nodes</li>
+          <li>Target only sees attacker's view of the chain</li>
+          <li>Feed target a fake chain / withhold blocks</li>
+        </ol>
+      </div>
+      <div class="panel">
+        <h2>Connection Map</h2>
+        <canvas id="canvasEclipse"></canvas>
+        <div style="margin-top:8px">
+          <span class="metric">Victim peers: <span class="num" id="victimPeers">8/8 honest</span></span>
+          <span class="metric">Isolated: <span class="num" id="eclipseStatus">No</span></span>
+        </div>
+        <div class="defense">
+          <h4>Defenses</h4>
+          <ul>
+            <li>Diverse peer selection (random from many buckets)</li>
+            <li>Limit inbound connections per IP/subnet</li>
+            <li>Anchor connections to trusted peers</li>
+            <li>Monitor for sudden peer churn</li>
+            <li>Use multiple network transports (Tor, I2P)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reentrancy Attack -->
+  <div class="tab-content" id="tab3">
+    <div class="attack-grid">
+      <div class="panel">
+        <h2>Reentrancy Attack</h2>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:10px">Exploit a vulnerable withdrawal function to drain contract funds (like the DAO hack).</p>
+        <button class="danger" onclick="runReentrancyAttack()">Execute Reentrancy Exploit</button>
+        <ol class="steps" id="stepsReentrancy">
+          <li>Vulnerable contract holds 10 ETH</li>
+          <li>Attacker deposits 1 ETH</li>
+          <li>Attacker calls withdraw()</li>
+          <li>Contract sends ETH — triggers attacker's fallback</li>
+          <li>Fallback re-calls withdraw() before balance update</li>
+          <li>Loop repeats — drains entire contract</li>
+        </ol>
+      </div>
+      <div class="panel">
+        <h2>Contract State</h2>
+        <div class="contract-state" id="contractState">
+          <div><span class="var">contract.balance</span> = <span class="val">10.0 ETH</span></div>
+          <div><span class="var">balances[victim1]</span> = <span class="val">4.0 ETH</span></div>
+          <div><span class="var">balances[victim2]</span> = <span class="val">3.0 ETH</span></div>
+          <div><span class="var">balances[victim3]</span> = <span class="val">2.0 ETH</span></div>
+          <div><span class="var">balances[attacker]</span> = <span class="val">1.0 ETH</span></div>
+        </div>
+        <h3>Call Stack</h3>
+        <div id="callStack" style="font-family:monospace;font-size:0.7rem;background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px;max-height:150px;overflow-y:auto"></div>
+        <div class="defense">
+          <h4>Defenses</h4>
+          <ul>
+            <li>Checks-Effects-Interactions pattern</li>
+            <li>ReentrancyGuard mutex (OpenZeppelin)</li>
+            <li>Use transfer() instead of call() (2300 gas limit)</li>
+            <li>Pull-over-push payment pattern</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(idx) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  document.querySelectorAll('.tab-content').forEach((t, i) => t.classList.toggle('active', i === idx));
+}
+
+// --- 51% Attack ---
+let attack51Running = false;
+function run51Attack() {
+  if (attack51Running) return;
+  attack51Running = true;
+  const hashpower = parseInt(document.getElementById('hashSlider').value) / 100;
+  const steps = document.querySelectorAll('#steps51 li');
+  let pubChain = [{ x: 50, color: '#10b981' }];
+  let secChain = [{ x: 50, color: '#ef4444' }];
+  let step = 0;
+
+  function advance() {
+    if (step < 5) {
+      steps[step].classList.add('active');
+      if (step > 0) steps[step - 1].classList.remove('active');
+      steps[step - 1]?.classList.add('done');
+    }
+
+    if (step < 6) {
+      // Grow chains
+      if (Math.random() < (1 - hashpower)) pubChain.push({ x: 50 + pubChain.length * 40, color: '#10b981' });
+      if (Math.random() < hashpower) secChain.push({ x: 50 + secChain.length * 40, color: '#ef4444' });
+      if (step >= 3) {
+        secChain.push({ x: 50 + secChain.length * 40, color: '#ef4444' });
+      }
+    }
+
+    document.getElementById('pubLen').textContent = pubChain.length;
+    document.getElementById('secLen').textContent = secChain.length;
+    draw51(pubChain, secChain, step >= 4);
+
+    step++;
+    if (step <= 8) setTimeout(advance, 1000);
+    else {
+      steps[4].classList.add('done');
+      steps[4].classList.remove('active');
+      attack51Running = false;
+    }
+  }
+  advance();
+}
+
+function draw51(pub, sec, revealed) {
+  const canvas = document.getElementById('canvas51');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * 2;
+  canvas.height = canvas.offsetHeight * 2;
+  ctx.scale(2, 2);
+  const w = canvas.offsetWidth, h = canvas.offsetHeight;
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, w, h);
+
+  const drawChain = (chain, y, label) => {
+    ctx.fillStyle = '#666';
+    ctx.font = '10px Manrope';
+    ctx.fillText(label, 10, y + 4);
+    chain.forEach((block, i) => {
+      const x = 80 + i * 35;
+      ctx.fillStyle = block.color;
+      ctx.fillRect(x, y - 10, 28, 20);
+      ctx.fillStyle = '#0a0a0a';
+      ctx.font = '8px monospace';
+      ctx.fillText('#' + (i + 1), x + 6, y + 4);
+      if (i > 0) {
+        ctx.strokeStyle = block.color;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - 7, y);
+        ctx.stroke();
+      }
+    });
+  };
+
+  drawChain(pub, h * 0.35, 'Public');
+  if (revealed) {
+    drawChain(sec, h * 0.65, 'Secret (REVEALED)');
+    // Strike through public
+    ctx.strokeStyle = '#ef444480';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(80, h * 0.35);
+    ctx.lineTo(80 + pub.length * 35, h * 0.35);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  } else {
+    drawChain(sec, h * 0.65, 'Secret');
+  }
+}
+
+// --- Sybil Attack ---
+let sybilRunning = false;
+function runSybilAttack() {
+  if (sybilRunning) return;
+  sybilRunning = true;
+  const grid = document.getElementById('sybilGrid');
+  const steps = document.querySelectorAll('#stepsSybil li');
+  let nodes = Array(12).fill('honest');
+  let step = 0;
+
+  function render() {
+    grid.innerHTML = nodes.map((type, i) => `<div class="node ${type}">${i + 1}</div>`).join('');
+  }
+
+  function advance() {
+    if (step < 5) {
+      steps[step].classList.add('active');
+      if (step > 0) steps[step - 1].classList.remove('active');
+      steps[step - 1]?.classList.add('done');
+    }
+
+    if (step === 1) {
+      // Add sybil nodes
+      for (let i = 0; i < 6; i++) {
+        setTimeout(() => {
+          nodes.push('sybil');
+          render();
+          updateSybilMetrics(nodes);
+        }, i * 200);
+      }
+    } else if (step === 2) {
+      for (let i = 0; i < 8; i++) {
+        setTimeout(() => {
+          nodes.push('sybil');
+          render();
+          updateSybilMetrics(nodes);
+        }, i * 150);
+      }
+    } else if (step === 3) {
+      for (let i = 0; i < 10; i++) {
+        setTimeout(() => {
+          nodes.push('sybil');
+          render();
+          updateSybilMetrics(nodes);
+        }, i * 100);
+      }
+    }
+
+    render();
+    updateSybilMetrics(nodes);
+    step++;
+    if (step <= 5) setTimeout(advance, 2000);
+    else {
+      steps[4].classList.add('done');
+      steps[4].classList.remove('active');
+      sybilRunning = false;
+    }
+  }
+  render();
+  advance();
+}
+
+function updateSybilMetrics(nodes) {
+  const honest = nodes.filter(n => n === 'honest').length;
+  const sybil = nodes.filter(n => n === 'sybil').length;
+  const pct = ((sybil / (honest + sybil)) * 100).toFixed(0);
+  document.getElementById('honestCount').textContent = honest;
+  document.getElementById('sybilCount').textContent = sybil;
+  document.getElementById('sybilControl').textContent = pct + '%';
+  document.getElementById('sybilProgress').style.width = pct + '%';
+}
+
+// --- Eclipse Attack ---
+let eclipseRunning = false;
+function runEclipseAttack() {
+  if (eclipseRunning) return;
+  eclipseRunning = true;
+  const steps = document.querySelectorAll('#stepsEclipse li');
+  let peerSlots = Array(8).fill('honest');
+  let step = 0;
+
+  function advance() {
+    if (step < 6) {
+      steps[step].classList.add('active');
+      if (step > 0) steps[step - 1].classList.remove('active');
+      steps[step - 1]?.classList.add('done');
+    }
+
+    if (step >= 2 && step <= 5) {
+      const slotsToFlip = step === 2 ? 2 : step === 3 ? 3 : step === 4 ? 2 : 1;
+      for (let i = 0; i < slotsToFlip; i++) {
+        const idx = peerSlots.indexOf('honest');
+        if (idx !== -1) peerSlots[idx] = 'attacker';
+      }
+    }
+
+    const honestLeft = peerSlots.filter(p => p === 'honest').length;
+    document.getElementById('victimPeers').textContent = `${honestLeft}/8 honest`;
+    document.getElementById('eclipseStatus').textContent = honestLeft === 0 ? 'YES!' : 'No';
+    drawEclipse(peerSlots);
+
+    step++;
+    if (step <= 6) setTimeout(advance, 1500);
+    else {
+      steps[5].classList.add('done');
+      steps[5].classList.remove('active');
+      eclipseRunning = false;
+    }
+  }
+  advance();
+}
+
+function drawEclipse(slots) {
+  const canvas = document.getElementById('canvasEclipse');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * 2;
+  canvas.height = canvas.offsetHeight * 2;
+  ctx.scale(2, 2);
+  const w = canvas.offsetWidth, h = canvas.offsetHeight;
+  const cx = w / 2, cy = h / 2;
+
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, w, h);
+
+  // Draw victim node at center
+  ctx.beginPath();
+  ctx.arc(cx, cy, 16, 0, Math.PI * 2);
+  ctx.fillStyle = '#f59e0b40';
+  ctx.fill();
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = '#f59e0b';
+  ctx.font = '9px Manrope';
+  ctx.textAlign = 'center';
+  ctx.fillText('Victim', cx, cy + 3);
+
+  // Draw peer nodes around
+  slots.forEach((type, i) => {
+    const angle = (i / slots.length) * Math.PI * 2 - Math.PI / 2;
+    const r = 80;
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+
+    // Connection line
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = type === 'attacker' ? '#ef444480' : '#10b98140';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Node
+    ctx.beginPath();
+    ctx.arc(x, y, 10, 0, Math.PI * 2);
+    ctx.fillStyle = type === 'attacker' ? '#ef444440' : '#10b98140';
+    ctx.fill();
+    ctx.strokeStyle = type === 'attacker' ? '#ef4444' : '#10b981';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = type === 'attacker' ? '#ef4444' : '#10b981';
+    ctx.font = '7px Manrope';
+    ctx.fillText(type === 'attacker' ? 'ATK' : 'OK', x, y + 3);
+  });
+  ctx.textAlign = 'left';
+}
+
+// --- Reentrancy Attack ---
+let reentrancyRunning = false;
+function runReentrancyAttack() {
+  if (reentrancyRunning) return;
+  reentrancyRunning = true;
+  const steps = document.querySelectorAll('#stepsReentrancy li');
+  const stateEl = document.getElementById('contractState');
+  const stackEl = document.getElementById('callStack');
+  let contractBalance = 10;
+  let attackerBalance = 1;
+  let step = 0;
+  let callDepth = 0;
+  stackEl.innerHTML = '';
+
+  function updateState() {
+    stateEl.innerHTML = `
+      <div><span class="var">contract.balance</span> = <span class="${contractBalance <= 0 ? 'danger-val' : 'val'}">${contractBalance.toFixed(1)} ETH</span></div>
+      <div><span class="var">balances[victim1]</span> = <span class="val">4.0 ETH</span></div>
+      <div><span class="var">balances[victim2]</span> = <span class="val">3.0 ETH</span></div>
+      <div><span class="var">balances[victim3]</span> = <span class="val">2.0 ETH</span></div>
+      <div><span class="var">balances[attacker]</span> = <span class="${attackerBalance > 1 ? 'danger-val' : 'val'}">${attackerBalance.toFixed(1)} ETH</span> (not yet decremented!)</div>
+    `;
+  }
+
+  function addCall(msg, color) {
+    stackEl.innerHTML += `<div style="color:${color};padding-left:${callDepth * 12}px">${'  '.repeat(callDepth)}${msg}</div>`;
+    stackEl.scrollTop = stackEl.scrollHeight;
+  }
+
+  function advance() {
+    if (step < 6) {
+      steps[step].classList.add('active');
+      if (step > 0) steps[step - 1].classList.remove('active');
+      steps[step - 1]?.classList.add('done');
+    }
+
+    if (step === 0) {
+      updateState();
+    } else if (step === 1) {
+      addCall('attacker.deposit{value: 1 ETH}()', '#f59e0b');
+    } else if (step === 2) {
+      addCall('attacker.attack() -> vault.withdraw()', '#ef4444');
+      callDepth++;
+    } else if (step === 3) {
+      addCall('vault sends 1 ETH -> triggers fallback()', '#ef4444');
+      contractBalance -= 1;
+      updateState();
+      callDepth++;
+    } else if (step === 4) {
+      // Reentrancy loop
+      let loopCount = 0;
+      const loop = setInterval(() => {
+        if (contractBalance <= 0 || loopCount >= 9) {
+          clearInterval(loop);
+          step++;
+          setTimeout(advance, 500);
+          return;
+        }
+        addCall(`fallback() -> vault.withdraw() [re-enter #${loopCount + 1}]`, '#ef4444');
+        contractBalance -= 1;
+        callDepth++;
+        updateState();
+        loopCount++;
+      }, 400);
+      return;
+    } else if (step === 5) {
+      steps[4].classList.add('done');
+      steps[4].classList.remove('active');
+      steps[5].classList.add('active');
+      addCall('CONTRACT DRAINED! Attacker got ' + (10) + ' ETH', '#ef4444');
+      attackerBalance = 10;
+      updateState();
+      steps[5].classList.add('done');
+      steps[5].classList.remove('active');
+      reentrancyRunning = false;
+      return;
+    }
+
+    step++;
+    if (step <= 4) setTimeout(advance, 1200);
+  }
+  advance();
+}
+
+// Initialize eclipse canvas
+drawEclipse(Array(8).fill('honest'));
+
+// Initialize sybil grid
+document.getElementById('sybilGrid').innerHTML = Array(12).fill(0).map((_, i) => `<div class="node honest">${i + 1}</div>`).join('');
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

@@ -191,6 +191,66 @@
       "creator": "serge-ivo",
       "creatorName": "Serge",
       "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "attack-lab",
+      "name": "Attack Laboratory",
+      "description": "Simulate 51% attacks, Sybil attacks, eclipse attacks, and reentrancy exploits step by step.",
+      "icon": "🛡️",
+      "iconBg": "#ef4444",
+      "category": "security",
+      "storeType": "behavior",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "dao-builder",
+      "name": "DAO Governance",
+      "description": "Build a DAO: set voting rules, create proposals, vote with token-weighted governance.",
+      "icon": "🏛️",
+      "iconBg": "#3b82f6",
+      "category": "contracts",
+      "storeType": "behavior",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "dex-pipeline",
+      "name": "DEX Pipeline",
+      "description": "Full decentralized exchange: create token, add liquidity, trade, watch price chart.",
+      "icon": "📈",
+      "iconBg": "#ec4899",
+      "category": "composed",
+      "storeType": "behavior",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "layer2-sim",
+      "name": "Layer 2 Scaling",
+      "description": "Optimistic vs ZK rollups side-by-side. Batching, fraud proofs, throughput comparison.",
+      "icon": "🚀",
+      "iconBg": "#10b981",
+      "category": "blockchain",
+      "storeType": "behavior",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "nft-workshop",
+      "name": "NFT Workshop",
+      "description": "Draw pixel art, generate metadata, mint NFTs. Full ERC-721 flow simulated in browser.",
+      "icon": "🎨",
+      "iconBg": "#8b5cf6",
+      "category": "contracts",
+      "storeType": "behavior",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
     }
   ]
 }

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>YOUR_TITLE - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fafafa;font-family:Manrope,system-ui,sans-serif}
+.back{position:fixed;top:12px;left:12px;z-index:99;color:#f59e0b;text-decoration:none;font-size:.8rem;font-weight:600;opacity:.7}.back:hover{opacity:1}
+h1{text-align:center;color:#f59e0b;margin:16px 0 4px;font-size:1.5rem;font-weight:700}
+.sub{text-align:center;color:#737373;font-size:.82rem;margin-bottom:12px;max-width:600px;margin-left:auto;margin-right:auto}
+canvas{display:block;margin:0 auto;background:#111;border:1px solid #262626;border-radius:8px}
+.controls{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:10px 0;padding:0 12px}
+.btn{background:#f59e0b;color:#000;border:none;padding:7px 16px;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:Manrope,system-ui,sans-serif}
+.btn:hover{background:#d97706}
+.btn.sec{background:#262626;color:#fafafa}.btn.sec:hover{background:#333}
+footer{text-align:center;padding:20px;font-size:.65rem;color:#404040}
+footer a{color:#f59e0b;text-decoration:none}
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>YOUR_TITLE</h1>
+<p class="sub">YOUR_DESCRIPTION</p>
+
+<canvas id="canvas" width="700" height="400"></canvas>
+
+<div class="controls">
+<button class="btn" id="startBtn">Start</button>
+<button class="btn sec" id="resetBtn">Reset</button>
+</div>
+
+<footer>Built with <a href="/">FreeCryptoStore</a></footer>
+
+<script>
+// Your simulation code here
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+function draw() {
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // TODO: your visualization
+}
+
+document.getElementById('startBtn').onclick = () => {
+  // TODO: start simulation
+};
+
+document.getElementById('resetBtn').onclick = () => {
+  // TODO: reset state
+  draw();
+};
+
+draw();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

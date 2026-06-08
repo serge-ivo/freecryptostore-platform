@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Full DEX Pipeline - FreeCryptoStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;min-height:100vh;padding:20px}
+.back{position:fixed;top:16px;left:16px;color:#f59e0b;text-decoration:none;font-size:14px;z-index:100;opacity:0.8}
+.back:hover{opacity:1}
+h1{text-align:center;font-size:1.8rem;margin:20px 0 10px;color:#f59e0b}
+.subtitle{text-align:center;color:#888;font-size:0.9rem;margin-bottom:20px}
+.container{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.panel{background:#111;border:1px solid #222;border-radius:12px;padding:20px}
+.panel h2{font-size:1rem;color:#f59e0b;margin-bottom:12px;font-weight:600}
+label{display:block;font-size:0.8rem;color:#888;margin:8px 0 4px}
+input,select{width:100%;background:#1a1a1a;border:1px solid #333;color:#fafafa;padding:8px 12px;border-radius:6px;font-family:inherit;font-size:0.85rem}
+input:focus,select:focus{outline:none;border-color:#f59e0b}
+button{background:#f59e0b;color:#0a0a0a;border:none;padding:10px 16px;border-radius:6px;font-family:inherit;font-weight:600;cursor:pointer;font-size:0.85rem;margin-top:8px;width:100%}
+button:hover{background:#d97706}
+button:disabled{opacity:0.4;cursor:not-allowed}
+.stack{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.stack-item{background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:8px 12px;font-size:0.75rem;font-family:monospace;display:flex;justify-content:space-between;align-items:center}
+.stack-item .label{color:#888}
+.stack-item .addr{color:#f59e0b}
+.status{font-size:0.75rem;padding:4px 8px;border-radius:4px;display:inline-block;margin-top:4px}
+.status.deployed{background:#065f4620;color:#10b981}
+.status.pending{background:#f59e0b20;color:#f59e0b}
+.chart-container{position:relative;width:100%;height:300px;background:#0d0d0d;border:1px solid #222;border-radius:8px;overflow:hidden}
+canvas{width:100%;height:100%}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.stat{background:#1a1a1a;border-radius:6px;padding:10px;text-align:center}
+.stat .val{font-size:1.1rem;font-weight:700;color:#f59e0b}
+.stat .lbl{font-size:0.7rem;color:#888;margin-top:2px}
+.log{background:#0d0d0d;border:1px solid #222;border-radius:8px;padding:10px;max-height:150px;overflow-y:auto;font-size:0.7rem;font-family:monospace;margin-top:12px}
+.log-entry{padding:2px 0;border-bottom:1px solid #1a1a1a}
+.log-entry .time{color:#666}
+.log-entry .buy{color:#10b981}
+.log-entry .sell{color:#ef4444}
+.full-width{grid-column:1/-1}
+.curve-select{display:flex;gap:8px;margin-top:8px}
+.curve-opt{flex:1;padding:8px;border:1px solid #333;border-radius:6px;text-align:center;cursor:pointer;font-size:0.75rem;transition:all 0.2s}
+.curve-opt:hover{border-color:#f59e0b}
+.curve-opt.active{border-color:#f59e0b;background:#f59e0b20}
+.bot-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.bot{background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:4px 8px;font-size:0.7rem;display:flex;align-items:center;gap:4px}
+.bot .dot{width:6px;height:6px;border-radius:50%;background:#10b981;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Full DEX Pipeline</h1>
+<p class="subtitle">Create a token, deploy to chain, add liquidity, watch bots trade</p>
+
+<div class="container">
+  <div class="panel">
+    <h2>1. Create Token</h2>
+    <label>Token Name</label>
+    <input type="text" id="tokenName" value="MoonCoin" placeholder="Token name">
+    <label>Symbol</label>
+    <input type="text" id="tokenSymbol" value="MOON" placeholder="3-5 chars" maxlength="5">
+    <label>Total Supply</label>
+    <input type="number" id="tokenSupply" value="1000000" min="1000">
+    <label>Bonding Curve</label>
+    <div class="curve-select">
+      <div class="curve-opt active" data-curve="linear">Linear</div>
+      <div class="curve-opt" data-curve="exponential">Exponential</div>
+      <div class="curve-opt" data-curve="sigmoid">Sigmoid</div>
+    </div>
+    <button id="deployBtn" onclick="deployToken()">Deploy Token Contract</button>
+  </div>
+
+  <div class="panel">
+    <h2>2. Contract Stack</h2>
+    <div class="stack" id="contractStack">
+      <div class="stack-item"><span class="label">Token Contract</span><span class="addr" id="tokenAddr">--</span></div>
+      <div class="stack-item"><span class="label">Pool Contract</span><span class="addr" id="poolAddr">--</span></div>
+      <div class="stack-item"><span class="label">Swap Router</span><span class="addr" id="routerAddr">--</span></div>
+      <div class="stack-item"><span class="label">Price Oracle</span><span class="addr" id="oracleAddr">--</span></div>
+    </div>
+    <button id="poolBtn" onclick="createPool()" disabled>Create Liquidity Pool (10 ETH + 100K tokens)</button>
+    <button id="startBtn" onclick="startTrading()" disabled>Start Bot Trading</button>
+  </div>
+
+  <div class="panel full-width">
+    <h2>3. Live Price Chart (Candlestick)</h2>
+    <div class="chart-container">
+      <canvas id="chart"></canvas>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="val" id="priceVal">--</div><div class="lbl">Price (ETH)</div></div>
+      <div class="stat"><div class="val" id="volumeVal">--</div><div class="lbl">24h Volume</div></div>
+      <div class="stat"><div class="val" id="liquidityVal">--</div><div class="lbl">Liquidity</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Active Bots</h2>
+    <div class="bot-list" id="botList"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Trade Log</h2>
+    <div class="log" id="tradeLog"></div>
+  </div>
+</div>
+
+<script>
+const SHA256=(function(){const K=new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);function rotr(n,x){return(x>>>n)|(x<<(32-n))}return function(msg){const bytes=new TextEncoder().encode(msg);const len=bytes.length;const bl=((len+9+63)&~63);const buf=new Uint8Array(bl);buf.set(bytes);buf[len]=0x80;const dv=new DataView(buf.buffer);dv.setUint32(bl-4,len*8,false);let h0=0x6a09e667,h1=0xbb67ae85,h2=0x3c6ef372,h3=0xa54ff53a,h4=0x510e527f,h5=0x9b05688c,h6=0x1f83d9ab,h7=0x5be0cd19;const w=new Uint32Array(64);for(let i=0;i<bl;i+=64){for(let j=0;j<16;j++)w[j]=dv.getUint32(i+j*4,false);for(let j=16;j<64;j++){const s0=rotr(7,w[j-15])^rotr(18,w[j-15])^(w[j-15]>>>3);const s1=rotr(17,w[j-2])^rotr(19,w[j-2])^(w[j-2]>>>10);w[j]=(w[j-16]+s0+w[j-7]+s1)|0}let a=h0,b=h1,c=h2,d=h3,e=h4,f=h5,g=h6,h=h7;for(let j=0;j<64;j++){const S1=rotr(6,e)^rotr(11,e)^rotr(25,e);const ch=(e&f)^(~e&g);const t1=(h+S1+ch+K[j]+w[j])|0;const S0=rotr(2,a)^rotr(13,a)^rotr(22,a);const maj=(a&b)^(a&c)^(b&c);const t2=(S0+maj)|0;h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0}h0=(h0+a)|0;h1=(h1+b)|0;h2=(h2+c)|0;h3=(h3+d)|0;h4=(h4+e)|0;h5=(h5+f)|0;h6=(h6+g)|0;h7=(h7+h)|0}return[h0,h1,h2,h3,h4,h5,h6,h7].map(v=>(v>>>0).toString(16).padStart(8,'0')).join('')}})();
+
+let state = { deployed: false, poolCreated: false, trading: false };
+let selectedCurve = 'linear';
+let pool = { ethReserve: 0, tokenReserve: 0 };
+let candles = [];
+let currentCandle = null;
+let tradeInterval = null;
+let bots = [];
+let tradeCount = 0;
+
+document.querySelectorAll('.curve-opt').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.curve-opt').forEach(e => e.classList.remove('active'));
+    el.classList.add('active');
+    selectedCurve = el.dataset.curve;
+  });
+});
+
+function genAddr(seed) {
+  return '0x' + SHA256(seed + Math.random()).slice(0, 40);
+}
+
+function deployToken() {
+  const name = document.getElementById('tokenName').value;
+  const symbol = document.getElementById('tokenSymbol').value;
+  const supply = document.getElementById('tokenSupply').value;
+  if (!name || !symbol || !supply) return;
+
+  const tokenAddr = genAddr('token-' + name);
+  const poolAddress = genAddr('pool-' + name);
+  const routerAddress = genAddr('router-' + name);
+  const oracleAddress = genAddr('oracle-' + name);
+
+  document.getElementById('tokenAddr').textContent = tokenAddr.slice(0, 10) + '...' + tokenAddr.slice(-6);
+  document.getElementById('poolAddr').textContent = poolAddress.slice(0, 10) + '...' + poolAddress.slice(-6);
+  document.getElementById('routerAddr').textContent = routerAddress.slice(0, 10) + '...' + routerAddress.slice(-6);
+  document.getElementById('oracleAddr').textContent = oracleAddress.slice(0, 10) + '...' + oracleAddress.slice(-6);
+
+  state.deployed = true;
+  state.tokenAddr = tokenAddr;
+  state.poolAddr = poolAddress;
+  document.getElementById('deployBtn').disabled = true;
+  document.getElementById('poolBtn').disabled = false;
+  addLog(`Deployed ${symbol} (${name}) — Supply: ${Number(supply).toLocaleString()}`, 'buy');
+}
+
+function createPool() {
+  pool.ethReserve = 10;
+  pool.tokenReserve = 100000;
+  state.poolCreated = true;
+  document.getElementById('poolBtn').disabled = true;
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('liquidityVal').textContent = '$' + (pool.ethReserve * 2 * 1800).toLocaleString();
+  addLog('Pool created: 10 ETH + 100,000 tokens', 'buy');
+  updatePrice();
+}
+
+function getPrice() {
+  if (pool.tokenReserve === 0) return 0;
+  return pool.ethReserve / pool.tokenReserve;
+}
+
+function swap(ethIn, tokenIn) {
+  if (ethIn > 0) {
+    const fee = ethIn * 0.003;
+    const effectiveIn = ethIn - fee;
+    const tokensOut = (pool.tokenReserve * effectiveIn) / (pool.ethReserve + effectiveIn);
+    pool.ethReserve += ethIn;
+    pool.tokenReserve -= tokensOut;
+    return { type: 'buy', amount: tokensOut, cost: ethIn };
+  } else {
+    const fee = tokenIn * 0.003;
+    const effectiveIn = tokenIn - fee;
+    const ethOut = (pool.ethReserve * effectiveIn) / (pool.tokenReserve + effectiveIn);
+    pool.tokenReserve += tokenIn;
+    pool.ethReserve -= ethOut;
+    return { type: 'sell', amount: tokenIn, cost: ethOut };
+  }
+}
+
+function startTrading() {
+  state.trading = true;
+  document.getElementById('startBtn').disabled = true;
+
+  const botNames = ['AlphaBot', 'DexSniper', 'YieldFarmer', 'MEVHunter', 'SwapBot', 'LiquidBot'];
+  bots = botNames.map(name => ({
+    name,
+    addr: genAddr(name),
+    strategy: Math.random() > 0.5 ? 'momentum' : 'mean-reversion',
+    balance: 1 + Math.random() * 5
+  }));
+
+  const botList = document.getElementById('botList');
+  botList.innerHTML = bots.map(b => `<div class="bot"><span class="dot"></span>${b.name} (${b.strategy})</div>`).join('');
+
+  currentCandle = { open: getPrice(), high: getPrice(), low: getPrice(), close: getPrice(), volume: 0, time: Date.now() };
+
+  tradeInterval = setInterval(executeTrade, 800);
+  setInterval(closeCandle, 5000);
+}
+
+function executeTrade() {
+  if (!state.trading) return;
+  const bot = bots[Math.floor(Math.random() * bots.length)];
+  const price = getPrice();
+  const isBuy = Math.random() > 0.45;
+  let result;
+
+  if (isBuy) {
+    const ethAmount = 0.01 + Math.random() * 0.5;
+    result = swap(ethAmount, 0);
+    addLog(`${bot.name} BUY ${result.amount.toFixed(0)} tokens for ${result.cost.toFixed(4)} ETH`, 'buy');
+  } else {
+    const tokenAmount = 100 + Math.random() * 5000;
+    result = swap(0, tokenAmount);
+    addLog(`${bot.name} SELL ${result.amount.toFixed(0)} tokens for ${result.cost.toFixed(4)} ETH`, 'sell');
+  }
+
+  tradeCount++;
+  const newPrice = getPrice();
+  if (currentCandle) {
+    currentCandle.high = Math.max(currentCandle.high, newPrice);
+    currentCandle.low = Math.min(currentCandle.low, newPrice);
+    currentCandle.close = newPrice;
+    currentCandle.volume += result.cost;
+  }
+  updatePrice();
+  drawChart();
+}
+
+function closeCandle() {
+  if (!currentCandle) return;
+  candles.push({ ...currentCandle });
+  if (candles.length > 50) candles.shift();
+  const price = getPrice();
+  currentCandle = { open: price, high: price, low: price, close: price, volume: 0, time: Date.now() };
+}
+
+function updatePrice() {
+  const price = getPrice();
+  document.getElementById('priceVal').textContent = price.toFixed(6);
+  document.getElementById('volumeVal').textContent = (tradeCount * 0.25).toFixed(1) + ' ETH';
+  document.getElementById('liquidityVal').textContent = '$' + (pool.ethReserve * 2 * 1800).toFixed(0);
+}
+
+function drawChart() {
+  const canvas = document.getElementById('chart');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * 2;
+  canvas.height = canvas.offsetHeight * 2;
+  ctx.scale(2, 2);
+  const w = canvas.offsetWidth;
+  const h = canvas.offsetHeight;
+
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, w, h);
+
+  const allCandles = [...candles];
+  if (currentCandle) allCandles.push(currentCandle);
+  if (allCandles.length < 2) return;
+
+  const prices = allCandles.flatMap(c => [c.high, c.low]);
+  const minP = Math.min(...prices) * 0.95;
+  const maxP = Math.max(...prices) * 1.05;
+  const range = maxP - minP || 0.0001;
+
+  const candleW = (w - 40) / Math.max(allCandles.length, 1);
+  const pad = 20;
+
+  // Grid
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < 5; i++) {
+    const y = pad + (h - 2 * pad) * (i / 4);
+    ctx.beginPath();
+    ctx.moveTo(pad, y);
+    ctx.lineTo(w - pad, y);
+    ctx.stroke();
+    ctx.fillStyle = '#555';
+    ctx.font = '9px Manrope';
+    ctx.fillText((maxP - (range * i / 4)).toFixed(6), 2, y + 3);
+  }
+
+  allCandles.forEach((c, i) => {
+    const x = pad + i * candleW + candleW / 2;
+    const yOpen = pad + ((maxP - c.open) / range) * (h - 2 * pad);
+    const yClose = pad + ((maxP - c.close) / range) * (h - 2 * pad);
+    const yHigh = pad + ((maxP - c.high) / range) * (h - 2 * pad);
+    const yLow = pad + ((maxP - c.low) / range) * (h - 2 * pad);
+
+    const bullish = c.close >= c.open;
+    ctx.strokeStyle = bullish ? '#10b981' : '#ef4444';
+    ctx.fillStyle = bullish ? '#10b981' : '#ef4444';
+
+    // Wick
+    ctx.beginPath();
+    ctx.moveTo(x, yHigh);
+    ctx.lineTo(x, yLow);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Body
+    const bodyTop = Math.min(yOpen, yClose);
+    const bodyH = Math.max(Math.abs(yClose - yOpen), 1);
+    ctx.fillRect(x - candleW * 0.3, bodyTop, candleW * 0.6, bodyH);
+  });
+}
+
+function addLog(msg, type) {
+  const log = document.getElementById('tradeLog');
+  const time = new Date().toLocaleTimeString();
+  log.innerHTML = `<div class="log-entry"><span class="time">${time}</span> <span class="${type}">${msg}</span></div>` + log.innerHTML;
+  if (log.children.length > 50) log.removeChild(log.lastChild);
+}
+</script>
+<script src="/related.js"></script>
+</body>
+</html>
